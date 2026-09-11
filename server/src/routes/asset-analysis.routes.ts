@@ -1,0 +1,2 @@
+import { Router } from 'express'; import rateLimit from 'express-rate-limit'; import { analyzeAsset } from '../controllers/asset-analysis.controller.js';
+export const assetAnalysisRouter = Router(); assetAnalysisRouter.post('/analyze', rateLimit({ windowMs: 15 * 60 * 1000, limit: 20, standardHeaders: 'draft-8', legacyHeaders: false, message: { error: 'Too many analysis attempts. Please try again later.' } }), analyzeAsset);
