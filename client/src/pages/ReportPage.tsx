@@ -41,7 +41,7 @@ export function ReportPage() {
 
   return <main className="report-page shell">
     <Link className="back-link" to="/verify"><ArrowLeft size={16} /> New verification</Link>
-    <div className="report-heading"><div><p className="eyebrow">ANALYSIS COMPLETE</p><h1>Compatibility Report</h1></div><span className="report-id">ASSETFORGE VERIFY · V0.2</span></div>
+    <div className="report-heading"><div><p className="eyebrow">ANALYSIS COMPLETE / REPORT</p><h1>Compatibility<br /><span>Report.</span></h1></div><div className="report-stamp"><span>AssetForge Verify</span><small>Independent compatibility intelligence</small></div></div>
     <div className="report-actions"><button className="share-button" type="button" onClick={share}>{copied ? <Check size={17} /> : <Share2 size={17} />}{copied ? 'Link copied' : 'Share Report'}</button><Link className="another-button" to="/verify"><Copy size={16} /> Verify Another Asset</Link></div>
     <CompatibilityScore result={report} />
     <ReportMetadata report={report} />
