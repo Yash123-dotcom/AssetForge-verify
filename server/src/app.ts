@@ -1,6 +1,20 @@
 import cors from 'cors';
 import express from 'express';
-import helmet from 'helmet';
+import {
+  contentSecurityPolicy,
+  crossOriginOpenerPolicy,
+  crossOriginResourcePolicy,
+  originAgentCluster,
+  referrerPolicy,
+  strictTransportSecurity,
+  xContentTypeOptions,
+  xDnsPrefetchControl,
+  xDownloadOptions,
+  xFrameOptions,
+  xPermittedCrossDomainPolicies,
+  xPoweredBy,
+  xXssProtection,
+} from 'helmet';
 import { verifyRouter } from './routes/verify.routes.js';
 import { reportRouter } from './routes/report.routes.js';
 import { assetAnalysisRouter } from './routes/asset-analysis.routes.js';
@@ -24,7 +38,21 @@ export const app = express();
 const proxyHops = configuredProxyHops();
 if (proxyHops > 0) app.set('trust proxy', proxyHops);
 app.disable('x-powered-by');
-app.use(helmet());
+app.use(
+  contentSecurityPolicy(),
+  crossOriginOpenerPolicy(),
+  crossOriginResourcePolicy(),
+  originAgentCluster(),
+  referrerPolicy(),
+  strictTransportSecurity(),
+  xContentTypeOptions(),
+  xDnsPrefetchControl(),
+  xDownloadOptions(),
+  xFrameOptions(),
+  xPermittedCrossDomainPolicies(),
+  xPoweredBy(),
+  xXssProtection(),
+);
 app.use(cors({ origin: allowedOrigins }));
 app.use(express.json({ limit: '32kb' }));
 app.get('/api/health', (_request, response) => response.json({ status: 'ok' }));
