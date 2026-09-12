@@ -48,6 +48,14 @@ beforeEach(() => {
 });
 
 describe('persistent report flow', () => {
+  it('sets baseline API security headers', async () => {
+    const response = await request(app).get('/api/health');
+    expect(response.status).toBe(200);
+    expect(response.headers['x-content-type-options']).toBe('nosniff');
+    expect(response.headers['x-frame-options']).toBe('SAMEORIGIN');
+    expect(response.headers['x-powered-by']).toBeUndefined();
+  });
+
   it('creates, stores, and reloads a report by its public ID', async () => {
     const created = await createReport();
     expect(created.status).toBe(201);
@@ -86,6 +94,14 @@ describe('persistent report flow', () => {
     expect(response.status).toBe(503);
     expect(response.body.error).toBe('The report could not be saved.');
   });
+
+  it('rejects a report containing a non-Asset-Store source URL', async () => {
+    const response = await request(app).post('/api/verify').send({
+      ...base,
+      asset: { ...base.asset, metadata: { sourceUrl: 'javascript:alert(1)', source: 'UNITY_ASSET_STORE' } },
+    });
+    expect(response.status).toBe(400);
+  });
 });
 
 describe('report feedback', () => {
@@ -110,5 +126,17 @@ describe('report feedback', () => {
     const created = await createReport();
     const response = await request(app).post(`/api/reports/${created.body.id}/feedback`).send({ outcome: 'WORKED', comment: 'x'.repeat(501) });
     expect(response.status).toBe(400);
+  });
+});
+
+describe('API abuse protection', () => {
+  it('rate limits repeated verification writes', async () => {
+    let blockedResponse: Awaited<ReturnType<typeof createReport>> | undefined;
+    for (let attempt = 0; attempt < 35; attempt += 1) {
+      const response = await createReport();
+      if (response.status === 429) { blockedResponse = response; break; }
+    }
+    expect(blockedResponse?.status).toBe(429);
+    expect(blockedResponse?.headers['ratelimit']).toBeDefined();
   });
 });

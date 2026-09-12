@@ -2,6 +2,28 @@ import { PersistenceError } from '../lib/errors.js';
 
 const MAX_BYTES = 2_000_000;
 
+async function readLimitedBody(response: Response): Promise<string> {
+  if (!response.body) return '';
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let received = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      received += value.byteLength;
+      if (received > MAX_BYTES) {
+        await reader.cancel();
+        throw new PersistenceError('The Asset Store response was too large.');
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  return Buffer.concat(chunks.map((chunk) => Buffer.from(chunk)), received).toString('utf8');
+}
+
 export async function fetchUnityAssetStoreListing(url: string, timeoutMs = 8000): Promise<string> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -21,9 +43,7 @@ export async function fetchUnityAssetStoreListing(url: string, timeoutMs = 8000)
     if (!response.ok) throw new PersistenceError('The Asset Store listing could not be fetched.');
     const length = Number(response.headers.get('content-length') ?? 0);
     if (length > MAX_BYTES) throw new PersistenceError('The Asset Store response was too large.');
-    const text = await response.text();
-    if (Buffer.byteLength(text) > MAX_BYTES) throw new PersistenceError('The Asset Store response was too large.');
-    return text;
+    return readLimitedBody(response);
   } catch (error) {
     if (error instanceof PersistenceError) throw error;
     throw new PersistenceError(error instanceof Error && error.name === 'AbortError' ? 'The Asset Store request timed out.' : 'The Asset Store listing could not be fetched.');

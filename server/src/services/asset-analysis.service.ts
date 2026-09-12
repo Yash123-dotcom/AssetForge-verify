@@ -1,3 +1,3 @@
 import { TtlCache } from '../cache/ttl-cache.js'; import { parseUnityAssetStore } from '../parsers/unityAssetStore.parser.js'; import { fetchUnityAssetStoreListing } from '../providers/unityAssetStore.provider.js'; import { AssetListingAnalysis } from '../types/verify.types.js'; import { normalizeAssetStoreUrl } from '../validators/asset-url.validator.js';
-const cache = new TtlCache<AssetListingAnalysis>(24 * 60 * 60 * 1000);
+const cache = new TtlCache<AssetListingAnalysis>(24 * 60 * 60 * 1000, 500);
 export async function analyzeAssetUrl(value: string): Promise<AssetListingAnalysis> { const url = normalizeAssetStoreUrl(value); const cached = cache.get(url); if (cached) return cached; const analysis = parseUnityAssetStore(await fetchUnityAssetStoreListing(url), url); cache.set(url, analysis); return analysis; }

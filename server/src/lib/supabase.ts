@@ -10,6 +10,9 @@ export function getSupabase(): SupabaseClient {
   if (!url || !serviceRoleKey) {
     throw new PersistenceError('Report storage is not configured.');
   }
+  if (!serviceRoleKey.startsWith('sb_secret_')) {
+    throw new PersistenceError('Use a current Supabase secret key instead of a legacy service-role JWT.');
+  }
   client = createClient(url, serviceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
