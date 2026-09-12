@@ -1,4 +1,4 @@
-import rateLimit from 'express-rate-limit';
+import { rateLimit } from 'express-rate-limit';
 import { SupabaseRateLimitStore } from './rate-limit-store.js';
 
 const WINDOW_MS = 15 * 60 * 1000;
