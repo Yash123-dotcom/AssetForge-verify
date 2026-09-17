@@ -1,11 +1,11 @@
 import { PersistenceError } from '../lib/errors.js';
 import { getSupabase } from '../lib/supabase.js';
-import { FeedbackOutcome, FeedbackSummary } from '../types/verify.types.js';
+import { FeedbackCategory, FeedbackOutcome, FeedbackSummary, PredictionAlignment } from '../types/verify.types.js';
 
 type OutcomeRow = { outcome: FeedbackOutcome };
 
-export async function createFeedback(reportId: string, outcome: FeedbackOutcome, comment?: string): Promise<void> {
-  const { error } = await getSupabase().from('report_feedback').insert({ report_id: reportId, outcome, comment: comment || null });
+export async function createFeedback(reportId: string, outcome: FeedbackOutcome, category: FeedbackCategory | undefined, comment: string | undefined, alignment: PredictionAlignment): Promise<void> {
+  const { error } = await getSupabase().from('report_feedback').insert({ report_id: reportId, outcome, feedback_category: category ?? null, comment: comment || null, prediction_alignment: alignment });
   if (error) throw new PersistenceError('The feedback could not be saved.');
 }
 

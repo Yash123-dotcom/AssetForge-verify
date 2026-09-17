@@ -1,14 +1,22 @@
 import { Response } from 'express';
-import { NotFoundError, PersistenceError } from '../lib/errors.js';
+import { AssetFetchTimeoutError, NotFoundError, PersistenceError } from '../lib/errors.js';
 
 export function sendServiceError(error: unknown, response: Response): void {
   if (error instanceof NotFoundError) {
-    response.status(404).json({ error: error.message });
+    response.locals.errorCode = error.code;
+    response.status(404).json({ code: error.code, error: error.message });
+    return;
+  }
+  if (error instanceof AssetFetchTimeoutError) {
+    response.locals.errorCode = error.code;
+    response.status(504).json({ code: error.code, error: error.message });
     return;
   }
   if (error instanceof PersistenceError) {
-    response.status(503).json({ error: error.message });
+    response.locals.errorCode = error.code;
+    response.status(503).json({ code: error.code, error: error.message });
     return;
   }
-  response.status(500).json({ error: 'An unexpected error occurred.' });
+  response.locals.errorCode = 'INTERNAL_ERROR';
+  response.status(500).json({ code: 'INTERNAL_ERROR', error: 'An unexpected error occurred.' });
 }

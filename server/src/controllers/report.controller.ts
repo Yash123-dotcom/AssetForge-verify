@@ -6,7 +6,8 @@ import { sendServiceError } from './error-response.js';
 export async function readReport(request: Request, response: Response): Promise<void> {
   const validation = reportIdSchema.safeParse(request.params.id);
   if (!validation.success) {
-    response.status(400).json({ error: validation.error.issues[0]?.message ?? 'Invalid report ID.' });
+    response.locals.errorCode = 'INVALID_REPORT_ID';
+    response.status(400).json({ code: 'INVALID_REPORT_ID', error: validation.error.issues[0]?.message ?? 'Invalid report ID.' });
     return;
   }
   try { response.json(await getReport(validation.data)); }

@@ -7,6 +7,17 @@ import { VerifyRequest, VerifyResponse } from '../types/verify.types.js';
 import { generateRecommendations } from './recommendation.service.js';
 import { calculateRisk, calculateScore } from './scoring.service.js';
 
+const severityRank = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3, INFO: 4 } as const;
+
+function practicalSummary(risk: VerifyResponse['risk'], checks: VerifyResponse['checks']): string {
+  const concerns = checks.filter((check) => check.status !== 'PASS').slice(0, 2).map((check) => check.category.toLowerCase());
+  if (!concerns.length) return 'This asset looks compatible with the setup provided. Test it in a backup project before production use.';
+  const concernText = concerns.length === 1 ? concerns[0] : `${concerns[0]} and ${concerns[1]}`;
+  if (risk === 'LOW') return `This asset should work with a few manual checks. Review ${concernText} before importing.`;
+  if (risk === 'MEDIUM') return `This asset may work after some manual fixes. The main risks are ${concernText}.`;
+  return `Plan for compatibility work before using this asset. Start with ${concernText}.`;
+}
+
 export function verifyCompatibility(input: VerifyRequest): VerifyResponse {
   const checks = [
     evaluatePipeline(input),
@@ -14,14 +25,10 @@ export function verifyCompatibility(input: VerifyRequest): VerifyResponse {
     evaluateShaders(input),
     evaluateDependencies(input),
     evaluatePlatform(input),
-  ];
+  ].sort((left, right) => severityRank[left.severity] - severityRank[right.severity]);
   const score = calculateScore(checks);
   const risk = calculateRisk(score);
-  const summary = risk === 'LOW'
-    ? 'This asset looks likely to be compatible with your setup, though you should still test it before production use.'
-    : risk === 'MEDIUM'
-      ? 'This asset may work with your setup, but a few areas are worth checking carefully before import.'
-      : 'This asset has significant potential compatibility issues. Consider an alternative or plan for manual fixes.';
+  const summary = practicalSummary(risk, checks);
 
   return { score, risk, summary, checks, recommendations: generateRecommendations(checks) };
 }

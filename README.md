@@ -4,7 +4,7 @@ AssetForge Verify is a production-focused compatibility intelligence tool for Un
 
 > AssetForge Verify provides a heuristic compatibility score, not a probability, certification, or compatibility guarantee. Always validate an asset in a test project before production use.
 
-**Current version:** v0.4
+**Current version:** v0.5 Private Beta
 
 **Live frontend:** [asset-forge-verify-client.vercel.app](https://asset-forge-verify-client.vercel.app/)
 
@@ -19,6 +19,8 @@ AssetForge Verify is a production-focused compatibility intelligence tool for Un
 - Loading, validation, error, empty, and success states
 - SPA routing for the homepage, verifier, and durable report pages
 - Vercel Web Analytics for page views and existing product events
+- First-visit private-beta onboarding and a static demo report
+- Print-friendly compatibility reports with link and summary sharing
 
 ### Compatibility engine
 
@@ -40,6 +42,8 @@ The server starts from a baseline score of 70, applies the impact from every rul
 
 Every result includes a score, risk level, plain-language summary, individual check results, and targeted recommendations.
 
+Checks carry `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`, or `INFO` severity and are prioritized accordingly. Reports surface the three most important checks before the full breakdown and explain why each compatibility signal matters.
+
 ### Unity Asset Store analysis
 
 - Accepts public HTTPS URLs under `assetstore.unity.com/packages/...`
@@ -54,6 +58,8 @@ Every result includes a score, risk level, plain-language summary, individual ch
 - Generates durable `/report/:id` routes
 - Records `WORKED`, `PARTIAL`, or `FAILED` community outcomes
 - Accepts an optional feedback comment of up to 500 characters
+- Captures an optional structured issue category and derived prediction-alignment signal
+- Stores report usefulness (`YES`, `SOMEWHAT`, or `NO`) separately from the real asset outcome
 - Displays aggregate outcome totals for each report
 - Uses lightweight browser-local duplicate-submission prevention for the interface
 
@@ -68,6 +74,8 @@ Every result includes a score, risk level, plain-language summary, individual ch
 - Shared Supabase-backed rate-limit storage for serverless production deployments
 - Row Level Security on application tables with backend-only service-role access
 - Frontend security headers and SPA rewrites configured for Vercel
+- Stable API error codes, recovery actions, and privacy-safe structured request logs
+- Protected aggregate beta metrics and anonymized scoring-audit endpoints
 
 ## Technology
 
@@ -131,6 +139,7 @@ Run the migrations in `server/supabase/migrations/` in numeric order:
 1. `001_reports_and_feedback.sql` creates reports, feedback, indexes, and RLS configuration.
 2. `002_asset_listing_metadata.sql` adds listing metadata and provenance fields.
 3. `003_api_rate_limits.sql` creates the shared rate-limit table and atomic consumption function.
+4. `004_private_beta_hardening.sql` adds structured feedback, usefulness ratings, normalized comparison fields, beta events, and private-beta indexes.
 
 ### 3. Configure environment variables
 
@@ -151,6 +160,7 @@ TRUST_PROXY_HOPS=0
 RATE_LIMIT_STORE=memory
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=sb_secret_your-secret-key
+INTERNAL_METRICS_TOKEN=replace-with-a-long-random-token
 ```
 
 The Supabase secret key is backend-only. Never place it in `client/.env`, expose it in browser code, prefix it with `VITE_`, commit it, or share it publicly. Rotate the key immediately if it is exposed.
@@ -182,6 +192,10 @@ npm run dev --prefix client
 | `GET` | `/api/reports/:id` | Retrieve a public report |
 | `POST` | `/api/reports/:id/feedback` | Submit a community outcome and optional comment |
 | `GET` | `/api/reports/:id/feedback-summary` | Retrieve aggregate feedback totals |
+| `POST` | `/api/reports/:id/usefulness` | Submit a separate report-usefulness rating |
+| `POST` | `/api/events` | Record an allowlisted, non-PII beta event |
+| `GET` | `/api/internal/beta-metrics` | Retrieve aggregate private-beta KPIs using a bearer token |
+| `GET` | `/api/internal/scoring-audit` | Export anonymized scoring data using a bearer token |
 
 ### Verification example
 
@@ -232,7 +246,8 @@ Create two Vercel projects from this repository.
   - `CLIENT_ORIGIN=https://your-frontend-project.vercel.app`
   - `TRUST_PROXY_HOPS=1`
   - `RATE_LIMIT_STORE=supabase`
-- Run all three Supabase migrations before deploying.
+- Run all four Supabase migrations before deploying.
+- Set `INTERNAL_METRICS_TOKEN` to a long, random value and send it as `Authorization: Bearer <token>` only from trusted internal tools.
 
 ### Frontend project
 
@@ -251,13 +266,32 @@ Do not include a trailing slash in `CLIENT_ORIGIN` or `VITE_API_URL`. After eith
 - Browser-local duplicate feedback prevention is a usability measure, not a security boundary.
 - Community feedback is informational and does not constitute AssetForge certification.
 
+## Private beta goals and KPIs
+
+The private beta is intended to test usefulness, measure scoring accuracy, find misleading rules, and collect real-world import outcomes.
+
+| Area | Suggested KPI |
+| --- | --- |
+| Activation | Percentage of verification starts that produce a report |
+| Usefulness | Percentage of reports rated `YES` or `SOMEWHAT` |
+| Accuracy signal | Percentage of import outcomes whose prediction alignment is `ALIGNED` or `PARTIAL` |
+| Engagement | Percentage of reports shared by link or summary |
+| Growth | Percentage of report viewers clicking through to AssetForge |
+
+The protected metrics endpoint returns aggregates only. The scoring audit omits comments, HTML, IP addresses, and personal data.
+
+## Performance budgets
+
+- Asset URL analysis: target under 5 seconds in normal conditions; the upstream fetch is terminated at five seconds.
+- Compatibility verification: target under 500 ms server-side; the deterministic rules are performance-tested.
+- Report load: target under 2 seconds on a normal connection.
+- Frontend: review the production bundle size on every build and avoid unnecessary dependency growth.
+
 ## Roadmap
 
-- Unity package metadata scanning
-- Deeper Unity project configuration analysis
-- Stronger abuse-resistant feedback identity controls
-- AssetForge Verified creator and asset certification workflows
-- AssetForge marketplace integration
+- **v1.0:** Public release informed by private-beta usefulness and accuracy data
+- **v2:** Unity package-level metadata scanning and deeper project configuration analysis
+- Future AssetForge Verified creator workflows and marketplace integration
 
 ## Security
 

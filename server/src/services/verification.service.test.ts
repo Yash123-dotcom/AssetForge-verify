@@ -7,6 +7,7 @@ const testState = vi.hoisted(() => ({
   reports: new Map<string, VerificationReport>(),
   feedback: new Map<string, FeedbackOutcome[]>(),
   failCreate: false,
+  usefulness: new Map<string, string[]>(),
   nextId: 0,
 }));
 
@@ -32,6 +33,20 @@ vi.mock('../repositories/feedback.repository.js', () => ({
   }),
 }));
 
+vi.mock('../repositories/usefulness.repository.js', () => ({
+  createUsefulness: vi.fn(async (reportId: string, rating: string) => {
+    testState.usefulness.set(reportId, [...(testState.usefulness.get(reportId) ?? []), rating]);
+  }),
+}));
+
+vi.mock('../repositories/metrics.repository.js', () => ({
+  createBetaEvent: vi.fn(async () => undefined),
+  loadMetricsData: vi.fn(async () => ({
+    events: [{ event_name: 'verify_started' }, { event_name: 'analysis_succeeded' }, { event_name: 'report_viewed' }],
+    reports: [], feedback: [], usefulnessCount: 0,
+  })),
+}));
+
 const { app } = await import('../app.js');
 
 const base: VerifyRequest = {
@@ -44,7 +59,7 @@ async function createReport(overrides: Partial<VerifyRequest['asset']> = {}) {
 }
 
 beforeEach(() => {
-  testState.reports.clear(); testState.feedback.clear(); testState.failCreate = false; testState.nextId = 0;
+  testState.reports.clear(); testState.feedback.clear(); testState.usefulness.clear(); testState.failCreate = false; testState.nextId = 0;
 });
 
 describe('persistent report flow', () => {
@@ -127,6 +142,14 @@ describe('report feedback', () => {
     const response = await request(app).post(`/api/reports/${created.body.id}/feedback`).send({ outcome: 'WORKED', comment: 'x'.repeat(501) });
     expect(response.status).toBe(400);
   });
+
+  it('accepts a structured category and a separate usefulness rating', async () => {
+    const created = await createReport();
+    const id = created.body.id as string;
+    expect((await request(app).post(`/api/reports/${id}/feedback`).send({ outcome: 'PARTIAL', category: 'SHADERS_MATERIALS' })).status).toBe(201);
+    expect((await request(app).post(`/api/reports/${id}/usefulness`).send({ rating: 'SOMEWHAT', comment: 'More shader detail.' })).status).toBe(201);
+    expect(testState.usefulness.get(id)).toEqual(['SOMEWHAT']);
+  });
 });
 
 describe('API abuse protection', () => {
@@ -138,5 +161,21 @@ describe('API abuse protection', () => {
     }
     expect(blockedResponse?.status).toBe(429);
     expect(blockedResponse?.headers['ratelimit']).toBeDefined();
+  });
+});
+
+describe('private beta telemetry', () => {
+  it('accepts only allowlisted, non-PII event shapes', async () => {
+    expect((await request(app).post('/api/events').send({ event: 'report_viewed', durationMs: 120 })).status).toBe(202);
+    expect((await request(app).post('/api/events').send({ event: 'report_viewed', email: 'not-allowed@example.com' })).status).toBe(400);
+  });
+
+  it('protects internal beta metrics with a bearer token', async () => {
+    process.env.INTERNAL_METRICS_TOKEN = 'test-private-beta-token';
+    expect((await request(app).get('/api/internal/beta-metrics')).status).toBe(401);
+    const response = await request(app).get('/api/internal/beta-metrics').set('Authorization', 'Bearer test-private-beta-token');
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({ totalVerifyStarts: 1, reportsViewed: 1, urlAnalysisSuccessRate: 100 });
+    delete process.env.INTERNAL_METRICS_TOKEN;
   });
 });

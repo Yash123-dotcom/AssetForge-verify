@@ -6,6 +6,7 @@ export function evaluatePlatform(input: VerifyRequest): CheckResult {
     id: 'platform',
     category: 'Target platform',
     status: 'PASS',
+    severity: 'INFO',
     scoreImpact: 0,
     message: 'No explicit platform conflict detected from the provided information.',
   };

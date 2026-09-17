@@ -1,7 +1,8 @@
-import { Check, TriangleAlert, X } from 'lucide-react';
+import { Check, Info, TriangleAlert, X } from 'lucide-react';
 import type { CheckResult } from '../types/verify.types';
 
 export function CheckCard({ check }: { check: CheckResult }) {
   const Icon = check.status === 'PASS' ? Check : check.status === 'WARNING' ? TriangleAlert : X;
-  return <article className={`check-card ${check.status.toLowerCase()}`}><span className="check-icon"><Icon size={17} /></span><div><h3>{check.category}</h3><p>{check.message}</p>{check.details && check.details.length > 0 && <div className="detail-tags">{check.details.map((detail) => <span key={detail}>{detail}</span>)}</div>}</div><span className="impact">{check.scoreImpact > 0 ? '+' : ''}{check.scoreImpact}</span></article>;
+  const explanations: Record<string, string> = { pipeline: 'Assets built for another render pipeline may require material or shader conversion.', 'unity-version': 'Older assets may rely on deprecated APIs or package versions.', shaders: 'Custom shaders may need manual changes across render pipelines.', dependencies: 'External packages can introduce version conflicts.', platform: 'Platform APIs and rendering support can differ between build targets.' };
+  return <article className={`check-card ${check.status.toLowerCase()} severity-${check.severity.toLowerCase()}`}><span className="check-icon"><Icon size={17} /></span><div><div className="check-title"><h3>{check.category}</h3><button type="button" className="why-tooltip" aria-label={`Why ${check.category} matters`} data-tooltip={explanations[check.id] ?? 'This signal can affect how much setup work is needed.'}><Info size={15} /></button><span className="severity-label">{check.severity}</span></div><p>{check.message}</p>{check.details && check.details.length > 0 ? <div className="detail-tags">{check.details.map((detail) => <span key={detail}>{detail}</span>)}</div> : check.id === 'dependencies' ? <p className="inline-empty">No dependencies detected.</p> : null}</div><span className="impact">{check.scoreImpact > 0 ? '+' : ''}{check.scoreImpact}</span></article>;
 }

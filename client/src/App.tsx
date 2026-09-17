@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { Navbar } from './components/Navbar';
 import { SiteFooter } from './components/SiteFooter';
+import { BetaOnboarding } from './components/BetaOnboarding';
 import { HomePage } from './pages/HomePage';
 import { ReportPage } from './pages/ReportPage';
 import { VerifyPage } from './pages/VerifyPage';
@@ -11,10 +12,12 @@ export default function App() {
     <RouteEffects />
     <a className="skip-link" href="#main-content">Skip to content</a>
     <Navbar />
+    <BetaOnboarding />
     <div id="main-content" tabIndex={-1}><Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/verify" element={<VerifyPage />} />
         <Route path="/report/:id" element={<ReportPage />} />
+        <Route path="/demo" element={<ReportPage demo />} />
         <Route path="*" element={<HomePage />} />
       </Routes></div>
     <SiteFooter />

@@ -28,3 +28,4 @@ export const verifyLimiter = limiter('verify', 30, 'Too many verification attemp
 export const feedbackLimiter = limiter('feedback', 10, 'Too many feedback attempts. Please try again later.');
 export const assetAnalysisLimiter = limiter('asset-analysis', 20, 'Too many analysis attempts. Please try again later.');
 export const reportReadLimiter = limiter('report-read', 120, 'Too many report requests. Please try again later.');
+export const analyticsLimiter = limiter('analytics', 120, 'Too many analytics events. Please try again later.');

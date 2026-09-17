@@ -15,6 +15,18 @@ export const verifyRequestSchema = z.object({
     pipeline: z.enum(PIPELINES),
     customShaders: z.boolean(),
     dependencies: z.array(cleanDependency).max(30, 'A maximum of 30 dependencies is supported'),
-    metadata: z.object({ assetName: z.string().trim().max(200).optional(), publisherName: z.string().trim().max(200).optional(), sourceUrl: assetStoreUrlSchema.optional(), source: z.literal('UNITY_ASSET_STORE').optional(), metadataSource: z.enum(['URL_ANALYSIS', 'MANUAL']).optional() }).strict().optional(),
+    metadata: z.object({
+      assetName: z.string().trim().max(200).optional(),
+      publisherName: z.string().trim().max(200).optional(),
+      sourceUrl: assetStoreUrlSchema.optional(),
+      source: z.literal('UNITY_ASSET_STORE').optional(),
+      metadataSource: z.enum(['URL_ANALYSIS', 'MANUAL', 'USER']).optional(),
+      fieldConfidence: z.object({
+        unityVersion: z.enum(['USER', 'HIGH', 'MEDIUM', 'LOW', 'UNKNOWN']).optional(),
+        pipeline: z.enum(['USER', 'HIGH', 'MEDIUM', 'LOW', 'UNKNOWN']).optional(),
+        dependencies: z.enum(['USER', 'HIGH', 'MEDIUM', 'LOW', 'UNKNOWN']).optional(),
+        shaders: z.enum(['USER', 'HIGH', 'MEDIUM', 'LOW', 'UNKNOWN']).optional(),
+      }).strict().optional(),
+    }).strict().optional(),
   }).strict(),
 }).strict();

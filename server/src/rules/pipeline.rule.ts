@@ -6,6 +6,7 @@ export function evaluatePipeline(input: VerifyRequest): CheckResult {
     id: 'pipeline',
     category: 'Render pipeline',
     status: matches ? 'PASS' : 'FAIL',
+    severity: matches ? 'INFO' : 'CRITICAL',
     scoreImpact: matches ? 20 : -30,
     message: matches
       ? `The asset and project both use ${pipelineNames[input.project.pipeline]}.`

@@ -1,6 +1,7 @@
 import { getSupabase } from '../lib/supabase.js';
 import { PersistenceError } from '../lib/errors.js';
 import { CheckResult, Risk, VerificationReport, VerifyRequest, VerifyResponse } from '../types/verify.types.js';
+import { normalizeAssetName, normalizeAssetUrl, normalizeUnityGeneration } from '../lib/normalization.js';
 
 type ReportRow = {
   id: string;
@@ -21,8 +22,17 @@ type ReportRow = {
   asset_publisher: string | null;
   asset_source_url: string | null;
   asset_source: 'UNITY_ASSET_STORE' | null;
-  asset_metadata_source: 'URL_ANALYSIS' | 'MANUAL' | null;
+  asset_metadata_source: 'URL_ANALYSIS' | 'MANUAL' | 'USER' | null;
+  asset_field_confidence?: NonNullable<VerifyRequest['asset']['metadata']>['fieldConfidence'] | null;
+  schema_version?: string | null;
+  is_demo?: boolean | null;
 };
+
+export function withLegacySeverity(check: CheckResult): CheckResult {
+  if (check.severity) return check;
+  const severity = check.status === 'FAIL' ? (check.id === 'pipeline' ? 'CRITICAL' : 'HIGH') : check.status === 'WARNING' ? 'MEDIUM' : 'INFO';
+  return { ...check, severity };
+}
 
 function toReport(row: ReportRow): VerificationReport {
   return {
@@ -32,10 +42,10 @@ function toReport(row: ReportRow): VerificationReport {
     summary: row.summary,
     project: { unityVersion: row.project_unity_version, pipeline: row.project_pipeline, platform: row.project_platform },
     asset: { testedUnityVersion: row.asset_unity_version, pipeline: row.asset_pipeline, customShaders: row.custom_shaders, dependencies: row.dependencies },
-    checks: row.checks,
+    checks: row.checks.map(withLegacySeverity),
     recommendations: row.recommendations,
     createdAt: row.created_at,
-    metadata: row.asset_name || row.asset_publisher || row.asset_source_url ? { assetName: row.asset_name ?? undefined, publisherName: row.asset_publisher ?? undefined, sourceUrl: row.asset_source_url ?? undefined, source: row.asset_source ?? undefined, metadataSource: row.asset_metadata_source ?? undefined } : undefined,
+    metadata: row.asset_name || row.asset_publisher || row.asset_source_url ? { assetName: row.asset_name ?? undefined, publisherName: row.asset_publisher ?? undefined, sourceUrl: row.asset_source_url ?? undefined, source: row.asset_source ?? undefined, metadataSource: row.asset_metadata_source ?? undefined, fieldConfidence: row.asset_field_confidence ?? undefined } : undefined,
   };
 }
 
@@ -58,6 +68,13 @@ export async function createReport(input: VerifyRequest, result: VerifyResponse)
     asset_source_url: input.asset.metadata?.sourceUrl ?? null,
     asset_source: input.asset.metadata?.source ?? null,
     asset_metadata_source: input.asset.metadata?.metadataSource ?? null,
+    asset_field_confidence: input.asset.metadata?.fieldConfidence ?? {},
+    project_unity_generation: normalizeUnityGeneration(input.project.unityVersion),
+    asset_unity_generation: normalizeUnityGeneration(input.asset.testedUnityVersion),
+    asset_url_normalized: normalizeAssetUrl(input.asset.metadata?.sourceUrl),
+    asset_name_normalized: normalizeAssetName(input.asset.metadata?.assetName),
+    schema_version: '0.5',
+    is_demo: false,
   }).select('*').single<ReportRow>();
 
   if (error || !data) throw new PersistenceError('The report could not be saved.');
