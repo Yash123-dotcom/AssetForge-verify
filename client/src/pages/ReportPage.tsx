@@ -9,6 +9,7 @@ import { ExploreCta } from '../components/ExploreCta';
 import { RecommendationList } from '../components/RecommendationList';
 import { ReportMetadata } from '../components/ReportMetadata';
 import { ReportUsefulness } from '../components/ReportUsefulness';
+import { DeepScanReport } from '../components/DeepScanReport';
 import { trackEvent } from '../services/analytics';
 import { ApiError, getReport } from '../services/verifyApi';
 import type { CheckStatus, VerificationReport } from '../types/verify.types';
@@ -48,6 +49,7 @@ export function ReportPage({ demo = false }: { demo?: boolean }) {
         viewTracked.current = true; trackEvent('report_viewed');
         const topIssue = result.checks.find((check) => check.status !== 'PASS');
         if (topIssue) trackEvent('top_issue_seen', { category: topIssue.category });
+        if (result.deepScan) trackEvent('deep_scan_report_viewed');
       }
     }).catch((error) => { if (error instanceof ApiError && error.code === 'REPORT_NOT_FOUND') setNotFound(true); else setLoadError(true); }).finally(() => setLoading(false));
   }, [id, demo, reload]);
@@ -70,6 +72,7 @@ export function ReportPage({ demo = false }: { demo?: boolean }) {
     <Link className="back-link" to="/verify"><ArrowLeft size={16} /> New verification</Link>
     <div className="report-heading"><div><p className="eyebrow">ANALYSIS COMPLETE / REPORT</p><h1>Compatibility<br /><span>Report.</span></h1></div><div className="report-stamp"><BetaBadge /><span>AssetForge Verify</span><small>{demo ? 'Static demonstration · no data saved' : 'Independent compatibility intelligence'}</small></div></div>
     <div className="report-actions"><button className="share-button" type="button" onClick={() => void copyText('link')}>{copied === 'link' ? <Check size={17} /> : <Copy size={17} />}{copied === 'link' ? 'Link copied' : 'Copy Link'}</button><button className="another-button" type="button" onClick={() => void copyText('summary')}>{copied === 'summary' ? <Check size={17} /> : <FileText size={16} />}{copied === 'summary' ? 'Summary copied' : 'Copy Summary'}</button><Link className="another-button" to="/verify">Verify Another Asset</Link></div>
+    {report.deepScan && <DeepScanReport scan={report.deepScan} />}
     <CompatibilityScore result={report} />
     <ReportMetadata report={report} />
     <section className={`report-asset-source ${report.metadata?.sourceUrl ? '' : 'empty'}`}><div><p className="eyebrow">ASSET</p><h2>{report.metadata?.assetName || 'No listing metadata available'}</h2>{report.metadata?.publisherName ? <p>by {report.metadata.publisherName}</p> : !report.metadata?.assetName ? <p>This report uses the details entered during verification.</p> : null}</div>{report.metadata?.sourceUrl && <a href={report.metadata.sourceUrl} target="_blank" rel="noreferrer">View original listing ↗</a>}</section>

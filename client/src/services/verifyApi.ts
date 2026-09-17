@@ -1,6 +1,7 @@
-import type { AssetListingAnalysis, FeedbackCategory, FeedbackOutcome, FeedbackSummary, UsefulnessRating, VerificationReport, VerifyRequest } from '../types/verify.types';
+import type { AssetListingAnalysis, DeepScanResponse, FeedbackCategory, FeedbackOutcome, FeedbackSummary, UsefulnessRating, VerificationReport, VerifyRequest } from '../types/verify.types';
 
 const API_URL = (import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:4000' : '')).replace(/\/$/, '');
+const DEEP_SCAN_API_URL = (import.meta.env.VITE_DEEP_SCAN_API_URL || API_URL).replace(/\/$/, '');
 
 function endpoint(path: string): string {
   if (!API_URL) throw new Error('AssetForge Verify API is not configured. Add VITE_API_URL to the deployment environment.');
@@ -15,6 +16,15 @@ const friendlyErrors: Record<string, string> = {
   REPORT_NOT_FOUND: "This report isn't available.",
   FEEDBACK_INVALID: 'Check the feedback details and try again.',
   INTERNAL_ERROR: 'The service hit an unexpected error. Please try again.',
+  PACKAGE_TOO_LARGE: 'This package is larger than the current Deep Scan limit.',
+  PACKAGE_EMPTY: 'Choose a non-empty Unity package.',
+  INVALID_PACKAGE_TYPE: 'Choose a valid .unitypackage file.',
+  ARCHIVE_UNSAFE: 'This package could not be scanned because its archive structure is unsafe.',
+  ARCHIVE_TOO_LARGE: 'The extracted package exceeds the current Deep Scan limit.',
+  ARCHIVE_TOO_MANY_FILES: 'This package contains more files than Deep Scan can safely inspect.',
+  ARCHIVE_EXTRACTION_FAILED: 'The package archive could not be read.',
+  SCAN_TIMEOUT: 'Deep Scan took too long to complete. Try a smaller package or use Quick Check.',
+  DEEP_SCAN_RUNTIME_UNAVAILABLE: 'Deep Scan is not available on the current API runtime.',
 };
 
 export class ApiError extends Error {
@@ -66,4 +76,20 @@ export async function analyzeAssetUrl(url: string): Promise<AssetListingAnalysis
   if (!response.ok) throw await responseError(response, "We couldn't analyze this listing.");
   const body = await response.json() as { analysis: AssetListingAnalysis };
   return body.analysis;
+}
+
+export function deepScanPackage(file: File, project: VerifyRequest['project'], onUploadProgress: (ratio: number) => void): Promise<DeepScanResponse> {
+  if (!DEEP_SCAN_API_URL) return Promise.reject(new ApiError('DEEP_SCAN_RUNTIME_UNAVAILABLE', friendlyErrors.DEEP_SCAN_RUNTIME_UNAVAILABLE));
+  const body = new FormData(); body.append('file', file); body.append('projectUnityVersion', project.unityVersion); body.append('projectPipeline', project.pipeline); body.append('projectPlatform', project.platform);
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest(); request.open('POST', `${DEEP_SCAN_API_URL}/api/deep-scan`); request.responseType = 'json';
+    request.upload.onprogress = (event) => { if (event.lengthComputable) onUploadProgress(event.loaded / event.total); };
+    request.onerror = () => reject(new ApiError('NETWORK_ERROR', 'Deep Scan could not reach the package-processing service.'));
+    request.onload = () => {
+      const response = request.response as (DeepScanResponse & { code?: string; error?: string }) | null;
+      if (request.status >= 200 && request.status < 300 && response) resolve(response);
+      else { const code = response?.code ?? 'INTERNAL_ERROR'; reject(new ApiError(code, friendlyErrors[code] ?? response?.error ?? 'Deep Scan could not inspect this package.')); }
+    };
+    request.send(body);
+  });
 }

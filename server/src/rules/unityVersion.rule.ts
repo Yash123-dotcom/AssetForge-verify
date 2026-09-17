@@ -3,6 +3,7 @@ import { CheckResult, unityVersionNames, UnityVersion, VerifyRequest } from '../
 const generations: Record<UnityVersion, number> = { '2021': 0, '2022': 1, '2023': 2, '6000': 3 };
 
 export function evaluateUnityVersion(input: VerifyRequest): CheckResult {
+  if (input.asset.metadata?.fieldConfidence?.unityVersion === 'UNKNOWN') return { id: 'unity-version', category: 'Unity version', status: 'WARNING', severity: 'INFO', scoreImpact: 0, message: 'Not enough package data was found to confirm the asset Unity generation.' };
   const project = input.project.unityVersion;
   const asset = input.asset.testedUnityVersion;
   const gap = Math.abs(generations[project] - generations[asset]);

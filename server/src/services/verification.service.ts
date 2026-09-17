@@ -18,13 +18,21 @@ function practicalSummary(risk: VerifyResponse['risk'], checks: VerifyResponse['
   return `Plan for compatibility work before using this asset. Start with ${concernText}.`;
 }
 
-export function verifyCompatibility(input: VerifyRequest): VerifyResponse {
+export function verifyCompatibility(input: VerifyRequest, packageSignals?: { dllPresent: boolean; documentationPresent: boolean }): VerifyResponse {
   const checks = [
     evaluatePipeline(input),
     evaluateUnityVersion(input),
     evaluateShaders(input),
     evaluateDependencies(input),
     evaluatePlatform(input),
+    ...(packageSignals ? [
+      packageSignals.dllPresent
+        ? { id: 'package-binaries', category: 'Precompiled plugins', status: 'WARNING' as const, severity: 'MEDIUM' as const, scoreImpact: -3, message: 'The package contains precompiled DLLs. Confirm platform and Unity version support.' }
+        : { id: 'package-binaries', category: 'Precompiled plugins', status: 'PASS' as const, severity: 'INFO' as const, scoreImpact: 0, message: 'No precompiled DLLs were detected by static inspection.' },
+      packageSignals.documentationPresent
+        ? { id: 'package-documentation', category: 'Setup documentation', status: 'PASS' as const, severity: 'INFO' as const, scoreImpact: 0, message: 'Documentation files were detected in the package.' }
+        : { id: 'package-documentation', category: 'Setup documentation', status: 'WARNING' as const, severity: 'INFO' as const, scoreImpact: 0, message: 'No obvious setup documentation was found in the package.' },
+    ] : []),
   ].sort((left, right) => severityRank[left.severity] - severityRank[right.severity]);
   const score = calculateScore(checks);
   const risk = calculateRisk(score);

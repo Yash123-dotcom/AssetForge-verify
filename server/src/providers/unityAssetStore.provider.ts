@@ -31,7 +31,7 @@ export async function fetchUnityAssetStoreListing(url: string, timeoutMs = 5000)
     let target = url;
     let response: Response | undefined;
     for (let redirects = 0; redirects <= 3; redirects += 1) {
-      response = await fetch(target, { redirect: 'manual', signal: controller.signal, headers: { 'user-agent': 'AssetForgeVerify/0.5 (+https://assetforge.co.in)' } });
+      response = await fetch(target, { redirect: 'manual', signal: controller.signal, headers: { 'user-agent': 'AssetForgeVerify/0.6 (+https://assetforge.co.in)' } });
       if (response.status < 300 || response.status >= 400) break;
       const location = response.headers.get('location');
       if (!location || redirects === 3) throw new PersistenceError('The Asset Store redirected too many times.');

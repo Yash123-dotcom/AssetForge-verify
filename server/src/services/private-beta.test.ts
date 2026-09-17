@@ -27,6 +27,14 @@ describe('v0.5 scoring hardening', () => {
     expect(many.checks.find((check) => check.id === 'dependencies')).toMatchObject({ status: 'WARNING', severity: 'MEDIUM' });
   });
 
+  it('does not reward missing dependency evidence from a package scan', () => {
+    const result = verifyCompatibility({
+      ...base,
+      asset: { ...base.asset, metadata: { source: 'UPLOADED_PACKAGE', metadataSource: 'PACKAGE_SCAN', fieldConfidence: { dependencies: 'UNKNOWN' } } },
+    });
+    expect(result.checks.find((check) => check.id === 'dependencies')).toMatchObject({ status: 'WARNING', severity: 'INFO', scoreImpact: 0 });
+  });
+
   it('keeps compatibility verification inside the 500ms server budget', () => {
     const started = performance.now();
     for (let index = 0; index < 1000; index += 1) verifyCompatibility(base);

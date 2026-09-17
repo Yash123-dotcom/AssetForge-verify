@@ -2,6 +2,7 @@ import { getSupabase } from '../lib/supabase.js';
 import { PersistenceError } from '../lib/errors.js';
 import { CheckResult, Risk, VerificationReport, VerifyRequest, VerifyResponse } from '../types/verify.types.js';
 import { normalizeAssetName, normalizeAssetUrl, normalizeUnityGeneration } from '../lib/normalization.js';
+import { findDeepScanByReportId } from './deep-scan.repository.js';
 
 type ReportRow = {
   id: string;
@@ -21,8 +22,8 @@ type ReportRow = {
   asset_name: string | null;
   asset_publisher: string | null;
   asset_source_url: string | null;
-  asset_source: 'UNITY_ASSET_STORE' | null;
-  asset_metadata_source: 'URL_ANALYSIS' | 'MANUAL' | 'USER' | null;
+  asset_source: 'UNITY_ASSET_STORE' | 'UPLOADED_PACKAGE' | null;
+  asset_metadata_source: 'URL_ANALYSIS' | 'MANUAL' | 'USER' | 'PACKAGE_SCAN' | null;
   asset_field_confidence?: NonNullable<VerifyRequest['asset']['metadata']>['fieldConfidence'] | null;
   schema_version?: string | null;
   is_demo?: boolean | null;
@@ -73,7 +74,7 @@ export async function createReport(input: VerifyRequest, result: VerifyResponse)
     asset_unity_generation: normalizeUnityGeneration(input.asset.testedUnityVersion),
     asset_url_normalized: normalizeAssetUrl(input.asset.metadata?.sourceUrl),
     asset_name_normalized: normalizeAssetName(input.asset.metadata?.assetName),
-    schema_version: '0.5',
+    schema_version: '0.6',
     is_demo: false,
   }).select('*').single<ReportRow>();
 
@@ -84,5 +85,8 @@ export async function createReport(input: VerifyRequest, result: VerifyResponse)
 export async function findReportById(id: string): Promise<VerificationReport | null> {
   const { data, error } = await getSupabase().from('verification_reports').select('*').eq('id', id).maybeSingle<ReportRow>();
   if (error) throw new PersistenceError('The report could not be loaded.');
-  return data ? toReport(data) : null;
+  if (!data) return null;
+  const report = toReport(data);
+  const deepScan = await findDeepScanByReportId(id);
+  return deepScan ? { ...report, deepScan } : report;
 }

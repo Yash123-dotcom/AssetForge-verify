@@ -5,7 +5,8 @@ export const CONFIDENCE_PRIORITY: Readonly<Record<DataConfidence, number>> = {
   LOW: 1,
   MEDIUM: 2,
   HIGH: 3,
-  USER: 4,
+  PACKAGE: 4,
+  USER: 5,
 };
 
 export function preferHigherConfidence<T>(

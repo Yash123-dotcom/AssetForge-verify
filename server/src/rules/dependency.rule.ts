@@ -3,6 +3,13 @@ import { CheckResult, VerifyRequest } from '../types/verify.types.js';
 export function evaluateDependencies(input: VerifyRequest): CheckResult {
   const dependencies = input.asset.dependencies;
   const count = dependencies.length;
+  if (count === 0 && input.asset.metadata?.fieldConfidence?.dependencies === 'UNKNOWN') {
+    return {
+      id: 'dependencies', category: 'Dependencies', status: 'WARNING', severity: 'INFO', scoreImpact: 0,
+      message: 'No dependency evidence was found in the package. This does not confirm that the asset has no external dependencies.',
+      details: [],
+    };
+  }
   let status: CheckResult['status'] = 'PASS';
   let severity: CheckResult['severity'] = 'INFO';
   let scoreImpact = 10;

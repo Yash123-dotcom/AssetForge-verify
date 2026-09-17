@@ -4,7 +4,7 @@ AssetForge Verify is a production-focused compatibility intelligence tool for Un
 
 > AssetForge Verify provides a heuristic compatibility score, not a probability, certification, or compatibility guarantee. Always validate an asset in a test project before production use.
 
-**Current version:** v0.5 Private Beta
+**Current version:** v0.6 Private Beta — Deep Scan
 
 **Live frontend:** [asset-forge-verify-client.vercel.app](https://asset-forge-verify-client.vercel.app/)
 
@@ -52,6 +52,22 @@ Checks carry `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`, or `INFO` severity and are pri
 - Keeps manual entry and correction available when public metadata is missing or inaccurate
 - Stores listing provenance with the resulting report
 
+### Deep Scan
+
+Deep Scan performs static inspection of uploaded `.unitypackage` or gzip-compressed Unity package archives. It combines direct package signals with the existing project compatibility engine while keeping the result advisory.
+
+Current capabilities:
+
+- Package structure and composition inspection
+- Script, shader, material, manifest, assembly definition, documentation, and DLL detection
+- URP, HDRP, and carefully qualified Built-in pipeline indicators
+- A maintainable set of dependency signals such as Cinemachine, TextMeshPro, Input System, Addressables, and Localization
+- Unity version hints, editor-only code, conditional compilation, and legacy API indicators
+- Severity-ranked package risks integrated into the compatibility report
+- Temporary upload processing with result-only persistence
+
+Deep Scan does **not** run Unity, compile scripts, compile shaders, execute uploaded code, load DLLs, render content, or simulate an actual import.
+
 ### Reports and community feedback
 
 - Persists verification reports in Supabase
@@ -85,8 +101,9 @@ Checks carry `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`, or `INFO` severity and are pri
 | Backend | Node.js 20+, Express 5, TypeScript, Zod |
 | Data | Supabase Postgres and Row Level Security |
 | Asset metadata | Cheerio-based public listing parser |
+| Package inspection | Streaming gzip/tar inspection with bounded static text parsers |
 | Testing | Vitest and Supertest |
-| Hosting and analytics | Two Vercel projects from one repository, Vercel Web Analytics |
+| Hosting and analytics | Vercel frontend and Quick Check API, dedicated Deep Scan runtime, Vercel Web Analytics |
 
 ## Repository structure
 
@@ -104,6 +121,8 @@ AssetForge-verify/
 │   │   ├── controllers/            HTTP request handlers
 │   │   ├── middleware/             Rate limiting and shared store
 │   │   ├── parsers/                Asset Store HTML parsing
+│   │   ├── security/               Archive paths, upload validation, and limits
+│   │   ├── upload/                 Temporary package upload and cleanup
 │   │   ├── providers/              Public listing retrieval
 │   │   ├── repositories/           Supabase persistence
 │   │   ├── rules/                  Five compatibility rules
@@ -140,6 +159,7 @@ Run the migrations in `server/supabase/migrations/` in numeric order:
 2. `002_asset_listing_metadata.sql` adds listing metadata and provenance fields.
 3. `003_api_rate_limits.sql` creates the shared rate-limit table and atomic consumption function.
 4. `004_private_beta_hardening.sql` adds structured feedback, usefulness ratings, normalized comparison fields, beta events, and private-beta indexes.
+5. `005_deep_scan.sql` stores result-only Deep Scan summaries and extends allowlisted beta events.
 
 ### 3. Configure environment variables
 
@@ -149,6 +169,8 @@ Use `.env.example` as the template. Create separate `client/.env` and `server/.e
 
 ```dotenv
 VITE_API_URL=http://localhost:4000
+VITE_DEEP_SCAN_API_URL=http://localhost:4000
+VITE_MAX_PACKAGE_SIZE_MB=250
 ```
 
 `server/.env`:
@@ -161,6 +183,14 @@ RATE_LIMIT_STORE=memory
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=sb_secret_your-secret-key
 INTERNAL_METRICS_TOKEN=replace-with-a-long-random-token
+DEEP_SCAN_ENABLED=true
+MAX_PACKAGE_SIZE_MB=250
+MAX_EXTRACTED_SIZE_MB=1000
+MAX_ARCHIVE_FILES=20000
+MAX_COMPRESSION_RATIO=50
+MAX_SINGLE_FILE_SIZE_MB=100
+MAX_TEXT_READ_MB=1
+DEEP_SCAN_TIMEOUT_SECONDS=120
 ```
 
 The Supabase secret key is backend-only. Never place it in `client/.env`, expose it in browser code, prefix it with `VITE_`, commit it, or share it publicly. Rotate the key immediately if it is exposed.
@@ -194,6 +224,7 @@ npm run dev --prefix client
 | `GET` | `/api/reports/:id/feedback-summary` | Retrieve aggregate feedback totals |
 | `POST` | `/api/reports/:id/usefulness` | Submit a separate report-usefulness rating |
 | `POST` | `/api/events` | Record an allowlisted, non-PII beta event |
+| `POST` | `/api/deep-scan` | Inspect a multipart Unity package on a Deep Scan-enabled runtime |
 | `GET` | `/api/internal/beta-metrics` | Retrieve aggregate private-beta KPIs using a bearer token |
 | `GET` | `/api/internal/scoring-audit` | Export anonymized scoring data using a bearer token |
 
@@ -230,9 +261,27 @@ npm test
 npm run build
 ```
 
-The current automated suite covers scoring and verification behavior, TTL caching, Asset Store URL validation, listing parsing, and provider behavior.
+The automated suite covers scoring and verification behavior, TTL caching, Asset Store URL validation, listing parsing, provider behavior, archive safety limits, and static Unity package parsing.
 
-## Deploy both applications on Vercel
+## Deployment architecture
+
+Quick Check and the frontend remain suitable for the existing two-project Vercel deployment. Deep Scan is intentionally disabled on the Vercel API because Vercel Functions reject request payloads above 4.5 MB, while Deep Scan accepts configurable packages up to 250 MB.
+
+Recommended production architecture:
+
+```text
+Vercel frontend
+├── Quick Check → Vercel Express API → Supabase
+└── Deep Scan   → Dedicated Node runtime → temporary disk → Supabase results
+```
+
+The dedicated runtime can use the same `server/` application with `DEEP_SCAN_ENABLED=true`. Set `VITE_DEEP_SCAN_API_URL` on the frontend to that service. Keep `DEEP_SCAN_ENABLED` unset or `false` on the Vercel API.
+
+Uploaded packages are written only to a uniquely named operating-system temporary directory. The scanner streams the gzip/tar archive without extracting entries, stores only normalized scan results, and removes the original temporary upload in a `finally` cleanup path. Startup cleanup removes stale scan directories left by an unexpected process termination.
+
+Archive protections reject absolute or traversal paths, links and device entries, nested archives, invalid gzip signatures, excessive file counts, excessive expanded size, large individual entries, and suspicious compression ratios. Only a bounded prefix of relevant text files is inspected; binaries are never loaded.
+
+## Deploy Quick Check on Vercel
 
 Create two Vercel projects from this repository.
 
@@ -246,7 +295,7 @@ Create two Vercel projects from this repository.
   - `CLIENT_ORIGIN=https://your-frontend-project.vercel.app`
   - `TRUST_PROXY_HOPS=1`
   - `RATE_LIMIT_STORE=supabase`
-- Run all four Supabase migrations before deploying.
+- Run all five Supabase migrations before deploying.
 - Set `INTERNAL_METRICS_TOKEN` to a long, random value and send it as `Authorization: Bearer <token>` only from trusted internal tools.
 
 ### Frontend project
@@ -255,13 +304,15 @@ Create two Vercel projects from this repository.
 - Framework Preset: Vite
 - Required environment variable:
   - `VITE_API_URL=https://your-api-project.vercel.app`
+  - `VITE_DEEP_SCAN_API_URL=https://your-dedicated-scan-service.example`
 
 Do not include a trailing slash in `CLIENT_ORIGIN` or `VITE_API_URL`. After either URL changes, update the matching environment variable and redeploy both projects. `client/vercel.json` handles SPA rewrites and browser headers; `server/vercel.json` configures the Express function.
 
 ## Current limitations
 
-- The application evaluates user-supplied or user-confirmed metadata; it does not inspect a local Unity project or package.
+- Quick Check evaluates user-supplied or user-confirmed metadata. Deep Scan inspects a package archive, but neither mode inspects the receiving Unity project itself.
 - Public listing extraction can be incomplete when the source page omits information or blocks retrieval.
+- Static package inspection cannot reproduce compilation, shader import, native plugin loading, or a real Unity import.
 - The compatibility engine is deterministic guidance and cannot account for every package implementation detail.
 - Browser-local duplicate feedback prevention is a usability measure, not a security boundary.
 - Community feedback is informational and does not constitute AssetForge certification.
@@ -289,9 +340,10 @@ The protected metrics endpoint returns aggregates only. The scoring audit omits 
 
 ## Roadmap
 
-- **v1.0:** Public release informed by private-beta usefulness and accuracy data
-- **v2:** Unity package-level metadata scanning and deeper project configuration analysis
-- Future AssetForge Verified creator workflows and marketplace integration
+- **v0.7:** Scan history and report comparison
+- **v0.8:** Creator verification workflow
+- **v1.0:** Public stable release
+- **v2:** Local project scanning and Unity-side integration
 
 ## Security
 

@@ -8,7 +8,7 @@ export type Platform = (typeof PLATFORMS)[number];
 export type CheckStatus = 'PASS' | 'WARNING' | 'FAIL';
 export type Risk = 'LOW' | 'MEDIUM' | 'HIGH';
 export type Severity = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'INFO';
-export type DataConfidence = 'USER' | 'HIGH' | 'MEDIUM' | 'LOW' | 'UNKNOWN';
+export type DataConfidence = 'USER' | 'PACKAGE' | 'HIGH' | 'MEDIUM' | 'LOW' | 'UNKNOWN';
 
 export type VerifyRequest = {
   project: { unityVersion: UnityVersion; pipeline: Pipeline; platform: Platform };
@@ -25,8 +25,8 @@ export type AssetReportMetadata = {
   assetName?: string;
   publisherName?: string;
   sourceUrl?: string;
-  source?: 'UNITY_ASSET_STORE';
-  metadataSource?: 'URL_ANALYSIS' | 'MANUAL' | 'USER';
+  source?: 'UNITY_ASSET_STORE' | 'UPLOADED_PACKAGE';
+  metadataSource?: 'URL_ANALYSIS' | 'MANUAL' | 'USER' | 'PACKAGE_SCAN';
   fieldConfidence?: Partial<Record<'unityVersion' | 'pipeline' | 'dependencies' | 'shaders', DataConfidence>>;
 };
 export type Confidence = 'HIGH' | 'MEDIUM' | 'LOW';
@@ -56,6 +56,7 @@ export type VerificationReport = VerifyResponse & {
   asset: VerifyRequest['asset'];
   createdAt: string;
   metadata?: AssetReportMetadata;
+  deepScan?: import('./deep-scan.types.js').DeepScanResult;
 };
 
 export type FeedbackOutcome = 'WORKED' | 'PARTIAL' | 'FAILED';
