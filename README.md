@@ -18,6 +18,7 @@ AssetForge Verify is a production-focused compatibility intelligence tool for Un
 - Guided three-step verification workspace: project, asset, and comparison
 - Loading, validation, error, empty, and success states
 - SPA routing for the homepage, verifier, and durable report pages
+- Vercel Web Analytics for page views and existing product events
 
 ### Compatibility engine
 
@@ -77,7 +78,7 @@ Every result includes a score, risk level, plain-language summary, individual ch
 | Data | Supabase Postgres and Row Level Security |
 | Asset metadata | Cheerio-based public listing parser |
 | Testing | Vitest and Supertest |
-| Hosting | Two Vercel projects from one repository |
+| Hosting and analytics | Two Vercel projects from one repository, Vercel Web Analytics |
 
 ## Repository structure
 
