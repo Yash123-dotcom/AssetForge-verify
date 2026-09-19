@@ -53,14 +53,14 @@ function reportInput(scan: DeepScanResult, project: DeepScanProject): VerifyRequ
   };
 }
 
-export async function runDeepScan(upload: UploadedPackage): Promise<DeepScanResponse> {
+export async function runDeepScan(upload: UploadedPackage, userId?: string, reservationId?: string): Promise<DeepScanResponse> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), deepScanLimits().scanTimeoutMs);
   const parsed = await parseUnityPackage(upload.path, upload.fileName, upload.sizeBytes, controller.signal).finally(() => clearTimeout(timeout));
   parsed.result.risks = buildRisks(parsed.result, upload.project);
   const input = reportInput(parsed.result, upload.project);
   const verification = verifyCompatibility(input, { dllPresent: parsed.result.detected.dllPresent, documentationPresent: parsed.result.detected.documentationPresent });
-  const report = await reportRepository.createReport(input, verification);
-  await deepScanRepository.createDeepScan(report.id, parsed.result);
+  const report = await reportRepository.createReport(input, verification, userId);
+  await deepScanRepository.createDeepScan(report.id, parsed.result, userId, reservationId);
   return { scanId: parsed.result.scanId, scan: parsed.result, report: { ...report, deepScan: parsed.result } };
 }

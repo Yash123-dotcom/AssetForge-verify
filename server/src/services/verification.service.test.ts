@@ -43,7 +43,7 @@ vi.mock('../repositories/metrics.repository.js', () => ({
   createBetaEvent: vi.fn(async () => undefined),
   loadMetricsData: vi.fn(async () => ({
     events: [{ event_name: 'verify_started' }, { event_name: 'analysis_succeeded' }, { event_name: 'report_viewed' }],
-    reports: [], feedback: [], usefulnessCount: 0,
+    reports: [], feedback: [], usefulnessCount: 0, payments: [], creditTransactions: [],
   })),
 }));
 

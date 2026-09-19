@@ -30,3 +30,4 @@ export const assetAnalysisLimiter = limiter('asset-analysis', 20, 'Too many anal
 export const reportReadLimiter = limiter('report-read', 120, 'Too many report requests. Please try again later.');
 export const analyticsLimiter = limiter('analytics', 120, 'Too many analytics events. Please try again later.');
 export const deepScanLimiter = limiter('deep-scan', 5, 'Too many Deep Scan attempts. Please try again later.');
+export const checkoutLimiter = limiter('checkout', 10, 'Too many checkout attempts. Please try again later.');

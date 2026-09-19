@@ -3,8 +3,8 @@ import * as reportRepository from '../repositories/report.repository.js';
 import { VerificationReport, VerifyRequest } from '../types/verify.types.js';
 import { verifyCompatibility } from './verification.service.js';
 
-export async function analyzeAndSaveReport(input: VerifyRequest): Promise<VerificationReport> {
-  return reportRepository.createReport(input, verifyCompatibility(input));
+export async function analyzeAndSaveReport(input: VerifyRequest, userId?: string): Promise<VerificationReport> {
+  return reportRepository.createReport(input, verifyCompatibility(input), userId);
 }
 
 export async function getReport(id: string): Promise<VerificationReport> {

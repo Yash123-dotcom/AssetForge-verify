@@ -38,4 +38,14 @@ export type DeepScanResult = {
   risks: DeepScanRisk[];
   confidence: { pipeline: 'HIGH' | 'MEDIUM' | 'LOW'; dependencies: 'HIGH' | 'MEDIUM' | 'LOW'; unityVersion: 'HIGH' | 'MEDIUM' | 'LOW' };
 };
-export type DeepScanResponse = { scanId: string; scan: DeepScanResult; report: VerificationReport };
+export type DeepScanResponse = { scanId: string; scan: DeepScanResult; report: VerificationReport; availableCredits: number };
+export type Currency = 'INR' | 'USD';
+export type CreditPack = { id: 'DEEP_SCAN_1' | 'DEEP_SCAN_5' | 'DEEP_SCAN_15'; credits: number; popular: boolean; prices: Record<Currency, { amount: number; formatted: string }> };
+export type AccountData = {
+  profile: { email: string; displayName: string | null; createdAt: string };
+  balance: { availableCredits: number; reservedCredits: number; updatedAt: string };
+  activity: Array<{ id: string; name: string; createdAt: string; score: number; risk: Risk; scanType: 'QUICK_CHECK' | 'DEEP_SCAN'; status: 'COMPLETED' }>;
+  payments: Array<{ id: string; pack_id: string; currency: Currency; amount: number; credits_purchased: number; status: string; created_at: string }>;
+  creditTransactions: Array<{ id: string; type: string; amount: number; metadata: Record<string, unknown>; created_at: string }>;
+  totals: { reports: number; deepScans: number };
+};

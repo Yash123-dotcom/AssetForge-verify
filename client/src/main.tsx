@@ -4,10 +4,11 @@ import { Analytics } from '@vercel/analytics/react';
 import App from './App';
 import './styles.css';
 import './brand-polish.css';
+import { AuthProvider } from './components/AuthProvider';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <AuthProvider><App /></AuthProvider>
     <Analytics />
   </StrictMode>,
 );

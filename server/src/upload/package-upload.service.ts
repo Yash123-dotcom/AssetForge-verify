@@ -10,7 +10,7 @@ import { deepScanLimits } from '../security/file-limits.js';
 import { assertGzipArchive, assertPackageFileName, assertPackageSize, deepScanProjectSchema } from '../security/upload-validator.js';
 import { cleanupScanTempDirectory, createScanTempDirectory } from './temp-storage.service.js';
 
-export type UploadedPackage = { directory: string; path: string; fileName: string; sizeBytes: number; project: DeepScanProject };
+export type UploadedPackage = { directory: string; path: string; fileName: string; sizeBytes: number; project: DeepScanProject; idempotencyKey: string };
 
 export async function receivePackageUpload(request: Request): Promise<UploadedPackage> {
   if (!request.headers['content-type']?.toLowerCase().startsWith('multipart/form-data')) throw new DeepScanError('INVALID_UPLOAD', 'Deep Scan requires a multipart package upload.', 415);
@@ -46,9 +46,11 @@ export async function receivePackageUpload(request: Request): Promise<UploadedPa
     const details = await stat(path);
     assertPackageSize(details.size, limits.maxPackageBytes);
     await assertGzipArchive(path);
-    const parsed = deepScanProjectSchema.safeParse(fields);
+    const parsed = deepScanProjectSchema.safeParse({ projectUnityVersion: fields.projectUnityVersion, projectPipeline: fields.projectPipeline, projectPlatform: fields.projectPlatform });
     if (!parsed.success) throw new DeepScanError('INVALID_PROJECT_SETUP', 'Choose a valid Unity version, render pipeline, and platform.', 400);
-    return { directory, path, fileName, sizeBytes: details.size, project: { unityVersion: parsed.data.projectUnityVersion, pipeline: parsed.data.projectPipeline, platform: parsed.data.projectPlatform } };
+    const idempotencyKey = fields.idempotencyKey;
+    if (!idempotencyKey || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(idempotencyKey)) throw new DeepScanError('INVALID_IDEMPOTENCY_KEY', 'Start a new Deep Scan request and try again.', 400);
+    return { directory, path, fileName, sizeBytes: details.size, project: { unityVersion: parsed.data.projectUnityVersion, pipeline: parsed.data.projectPipeline, platform: parsed.data.projectPlatform }, idempotencyKey };
   } catch (error) {
     await cleanupScanTempDirectory(directory).catch(() => undefined);
     throw error;

@@ -4,3 +4,6 @@ export class AssetFetchTimeoutError extends Error { readonly code = 'ASSET_FETCH
 export class DeepScanError extends Error {
   constructor(readonly code: string, message: string, readonly status = 422) { super(message); }
 }
+export class ServiceError extends Error {
+  constructor(readonly code: string, message: string, readonly status = 400) { super(message); }
+}

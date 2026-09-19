@@ -22,6 +22,8 @@ import { eventRouter } from './routes/event.routes.js';
 import { internalRouter } from './routes/internal.routes.js';
 import { requestLogger } from './middleware/request-logger.js';
 import { deepScanRouter } from './routes/deep-scan.routes.js';
+import { accountRouter } from './routes/account.routes.js';
+import { paymentRouter, paymentWebhookRouter } from './routes/payment.routes.js';
 
 const allowedOrigins = (process.env.CLIENT_ORIGIN ?? 'http://localhost:5173,http://127.0.0.1:5173')
   .split(',')
@@ -58,6 +60,7 @@ app.use(
   xXssProtection(),
 );
 app.use(cors({ origin: allowedOrigins }));
+app.use('/api/payments/webhooks', paymentWebhookRouter);
 app.use(express.json({ limit: '32kb' }));
 app.use(requestLogger);
 app.get('/api/health', (_request, response) => response.json({ status: 'ok' }));
@@ -67,4 +70,6 @@ app.use('/api/assets', assetAnalysisRouter);
 app.use('/api/events', eventRouter);
 app.use('/api/internal', internalRouter);
 app.use('/api/deep-scan', deepScanRouter);
+app.use('/api/account', accountRouter);
+app.use('/api/payments', paymentRouter);
 app.use((_request, response) => { response.locals.errorCode = 'NOT_FOUND'; response.status(404).json({ code: 'NOT_FOUND', error: 'Not found' }); });

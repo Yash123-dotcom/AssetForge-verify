@@ -50,7 +50,7 @@ function toReport(row: ReportRow): VerificationReport {
   };
 }
 
-export async function createReport(input: VerifyRequest, result: VerifyResponse): Promise<VerificationReport> {
+export async function createReport(input: VerifyRequest, result: VerifyResponse, userId?: string): Promise<VerificationReport> {
   const { data, error } = await getSupabase().from('verification_reports').insert({
     score: result.score,
     risk: result.risk,
@@ -74,8 +74,9 @@ export async function createReport(input: VerifyRequest, result: VerifyResponse)
     asset_unity_generation: normalizeUnityGeneration(input.asset.testedUnityVersion),
     asset_url_normalized: normalizeAssetUrl(input.asset.metadata?.sourceUrl),
     asset_name_normalized: normalizeAssetName(input.asset.metadata?.assetName),
-    schema_version: '0.6',
+    schema_version: '0.7',
     is_demo: false,
+    user_id: userId ?? null,
   }).select('*').single<ReportRow>();
 
   if (error || !data) throw new PersistenceError('The report could not be saved.');

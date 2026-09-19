@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { trackEvent } from '../services/analytics';
 
-const STORAGE_KEY = 'assetforge-beta-onboarding:v0.6';
+const STORAGE_KEY = 'assetforge-beta-onboarding:v0.7';
 
 export function BetaOnboarding() {
   const [open, setOpen] = useState(() => localStorage.getItem(STORAGE_KEY) !== 'dismissed');
@@ -36,7 +36,7 @@ export function BetaOnboarding() {
   if (!open) return null;
   return <div className="beta-modal-backdrop" role="presentation">
     <div className="beta-modal" ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="beta-modal-title" aria-describedby="beta-modal-description">
-      <span className="beta-modal-kicker">PRIVATE BETA / v0.6</span>
+      <span className="beta-modal-kicker">PRIVATE BETA / v0.7</span>
       <h2 id="beta-modal-title">AssetForge Verify is in private beta.</h2>
       <p id="beta-modal-description">Check an asset before importing. Verify is learning from real-world Unity setups while keeping every result transparent.</p>
       <ul><li>Paste a Unity Asset Store listing</li><li>Tell us your project setup</li><li>Review compatibility risks before import</li></ul>

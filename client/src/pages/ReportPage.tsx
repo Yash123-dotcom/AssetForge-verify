@@ -81,6 +81,7 @@ export function ReportPage({ demo = false }: { demo?: boolean }) {
     <details className="score-details"><summary>How this score was calculated</summary><div>{report.checks.map((check) => <div key={check.id}><span>{check.category} · {check.severity}</span><strong>{check.scoreImpact > 0 ? '+' : ''}{check.scoreImpact}</strong></div>)}</div></details>
     <div className="check-sections"><CheckSection title="Potential Issues" status="FAIL" checks={report.checks.filter((check) => check.status === 'FAIL')} /><CheckSection title="Warnings" status="WARNING" checks={report.checks.filter((check) => check.status === 'WARNING')} /><CheckSection title="Passed" status="PASS" checks={report.checks.filter((check) => check.status === 'PASS')} /></div>
     <RecommendationList recommendations={report.recommendations} />
+    {!report.deepScan && !demo && <section className="deep-conversion"><div><p className="eyebrow">WANT A DEEPER LOOK?</p><h2>Inspect the package itself.</h2><p>Deep Scan checks shaders, scripts, dependencies, pipeline signals, and binary indicators from the Unity package.</p></div><Link className="editorial-button" to="/verify">Run Deep Scan</Link></section>}
     {demo ? <section className="demo-notice"><p>This is a static demo report. No verification, outcome, or analytics record is counted as production data.</p><Link className="button primary" to="/verify">Check your own asset</Link></section> : <><CommunityFeedback reportId={report.id} /><ReportUsefulness reportId={report.id} /></>}
     <ExploreCta />
   </main>;

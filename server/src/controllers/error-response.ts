@@ -1,7 +1,12 @@
 import { Response } from 'express';
-import { AssetFetchTimeoutError, DeepScanError, NotFoundError, PersistenceError } from '../lib/errors.js';
+import { AssetFetchTimeoutError, DeepScanError, NotFoundError, PersistenceError, ServiceError } from '../lib/errors.js';
 
 export function sendServiceError(error: unknown, response: Response): void {
+  if (error instanceof ServiceError) {
+    response.locals.errorCode = error.code;
+    response.status(error.status).json({ code: error.code, error: error.message });
+    return;
+  }
   if (error instanceof DeepScanError) {
     response.locals.errorCode = error.code;
     response.status(error.status).json({ code: error.code, error: error.message });

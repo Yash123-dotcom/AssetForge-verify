@@ -6,10 +6,22 @@ import { pipeline } from 'node:stream/promises';
 import { createGzip } from 'node:zlib';
 import request from 'supertest';
 import { pack } from 'tar-stream';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { VerificationReport, VerifyRequest, VerifyResponse } from '../types/verify.types.js';
 
 const persisted = vi.hoisted(() => ({ reportInput: null as VerifyRequest | null, scan: null as unknown }));
+
+vi.mock('../middleware/auth.js', () => ({
+  optionalAuth: (request: { authUser?: { id: string; email: string } }, _response: unknown, next: () => void) => { request.authUser = { id: '00000000-0000-4000-8000-000000000007', email: 'tester@example.com' }; next(); },
+  requireAuth: (request: { authUser?: { id: string; email: string } }, _response: unknown, next: () => void) => { request.authUser = { id: '00000000-0000-4000-8000-000000000007', email: 'tester@example.com' }; next(); },
+}));
+
+vi.mock('../repositories/account.repository.js', () => ({
+  reserveCredit: vi.fn(async () => ({ reservationId: '00000000-0000-4000-8000-000000000008', availableCredits: 1, status: 'RESERVED' })),
+  finalizeCredit: vi.fn(async () => 0),
+  releaseCredit: vi.fn(async () => 1),
+  getAccountData: vi.fn(), getCreditBalance: vi.fn(), grantCredits: vi.fn(),
+}));
 
 vi.mock('../repositories/report.repository.js', () => ({
   createReport: vi.fn(async (input: VerifyRequest, result: VerifyResponse): Promise<VerificationReport> => {
@@ -26,12 +38,13 @@ vi.mock('../repositories/deep-scan.repository.js', () => ({
 
 vi.mock('../repositories/metrics.repository.js', () => ({
   createBetaEvent: vi.fn(async () => undefined),
-  loadMetricsData: vi.fn(async () => ({ events: [], reports: [], feedback: [], usefulnessCount: 0 })),
+  loadMetricsData: vi.fn(async () => ({ events: [], reports: [], feedback: [], usefulnessCount: 0, payments: [], creditTransactions: [] })),
 }));
 
 let fixtureDirectory = '';
 let fixturePath = '';
 let app: Awaited<typeof import('../app.js')>['app'];
+const accountRepository = await import('../repositories/account.repository.js');
 
 async function createFixture(): Promise<void> {
   fixtureDirectory = await mkdtemp(join(tmpdir(), 'assetforge-deep-scan-e2e-'));
@@ -73,6 +86,8 @@ afterAll(async () => {
   if (fixtureDirectory) await rm(fixtureDirectory, { recursive: true, force: true });
 });
 
+beforeEach(() => { vi.clearAllMocks(); persisted.scan = null; persisted.reportInput = null; });
+
 describe('Deep Scan multipart flow', () => {
   it('uploads, statically inspects, scores, persists results, and removes its temporary upload', async () => {
     const before = new Set((await readdir(tmpdir())).filter((name) => name.startsWith('assetforge-deep-scan-')));
@@ -81,6 +96,7 @@ describe('Deep Scan multipart flow', () => {
       .field('projectUnityVersion', '6000')
       .field('projectPipeline', 'URP')
       .field('projectPlatform', 'WINDOWS')
+      .field('idempotencyKey', '00000000-0000-4000-8000-000000000009')
       .attach('file', fixturePath, 'safe.unitypackage');
 
     expect(response.status).toBe(201);
@@ -105,9 +121,11 @@ describe('Deep Scan multipart flow', () => {
       .field('projectUnityVersion', '6000')
       .field('projectPipeline', 'URP')
       .field('projectPlatform', 'WINDOWS')
+      .field('idempotencyKey', '00000000-0000-4000-8000-000000000010')
       .attach('file', fixturePath, 'unsafe.zip');
     expect(response.status).toBe(415);
     expect(response.body.code).toBe('INVALID_PACKAGE_TYPE');
     expect(persisted.scan).toBeNull();
+    expect(accountRepository.reserveCredit).not.toHaveBeenCalled();
   });
 });

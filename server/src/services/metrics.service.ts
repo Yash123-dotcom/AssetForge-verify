@@ -5,13 +5,17 @@ function rate(numerator: number, denominator: number): number {
 }
 
 export async function getBetaMetrics() {
-  const { events, reports, feedback, usefulnessCount } = await loadMetricsData();
+  const { events, reports, feedback, usefulnessCount, payments, creditTransactions } = await loadMetricsData();
   const count = (name: string) => events.filter((event) => event.event_name === name).length;
   const analysisSuccess = count('analysis_succeeded');
   const analysisAttempts = analysisSuccess + count('analysis_failed');
   const categoryCounts = (status: 'WARNING' | 'FAIL') => reports.flatMap((report) => report.checks ?? []).filter((check) => check.status === status).reduce<Record<string, number>>((all, check) => ({ ...all, [check.category]: (all[check.category] ?? 0) + 1 }), {});
   const topFive = (values: Record<string, number>) => Object.entries(values).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([category, total]) => ({ category, total }));
   const verifyStarts = count('verify_started');
+  const successfulPayments = payments.filter((payment) => payment.status === 'SUCCEEDED');
+  const payingUsers = new Set(successfulPayments.map((payment) => payment.user_id));
+  const creditsConsumed = Math.abs(creditTransactions.filter((entry) => entry.type === 'SCAN_USAGE').reduce((total, entry) => total + entry.amount, 0));
+  const paidDeepScans = Math.abs(creditTransactions.filter((entry) => entry.type === 'SCAN_USAGE' && payingUsers.has(entry.user_id)).reduce((total, entry) => total + entry.amount, 0));
   return {
     totalVerifyStarts: verifyStarts,
     completedVerifications: reports.length,
@@ -23,6 +27,14 @@ export async function getBetaMetrics() {
     assetForgeCtaClicks: count('assetforge_cta_clicked'),
     topWarningCategories: topFive(categoryCounts('WARNING')),
     topFailureCategories: topFive(categoryCounts('FAIL')),
+    pricingPageVisits: count('pricing_viewed'),
+    checkoutStarts: count('checkout_started'),
+    successfulPurchases: successfulPayments.length,
+    purchaseConversionRate: rate(successfulPayments.length, count('checkout_started')),
+    creditsSold: successfulPayments.reduce((total, payment) => total + payment.credits_purchased, 0),
+    creditsConsumed,
+    paidDeepScans,
+    averageScansPerPayingUser: payingUsers.size ? Math.round((paidDeepScans / payingUsers.size) * 100) / 100 : 0,
   };
 }
 

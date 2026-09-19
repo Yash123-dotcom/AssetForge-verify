@@ -4,7 +4,7 @@ AssetForge Verify is a production-focused compatibility intelligence tool for Un
 
 > AssetForge Verify provides a heuristic compatibility score, not a probability, certification, or compatibility guarantee. Always validate an asset in a test project before production use.
 
-**Current version:** v0.6 Private Beta — Deep Scan
+**Current version:** v0.7 Private Beta — Accounts and Deep Scan credits
 
 **Live frontend:** [asset-forge-verify-client.vercel.app](https://asset-forge-verify-client.vercel.app/)
 
@@ -68,6 +68,20 @@ Current capabilities:
 
 Deep Scan does **not** run Unity, compile scripts, compile shaders, execute uploaded code, load DLLs, render content, or simulate an actual import.
 
+### Product tiers, accounts, and payments
+
+- **Quick Check is free:** anonymous users can analyze a listing, enter metadata manually, create a compatibility report, and share its public URL.
+- **Deep Scan uses credits:** one credit pays for one completed static package inspection. Invalid uploads and failed scans do not consume a credit.
+- [Supabase Auth](https://supabase.com/docs/guides/auth) provides email/password sign-up, sign-in, password recovery, magic links, session persistence, and sign-out.
+- Signed-in users receive a dashboard with their credit balance, Quick Checks, Deep Scans, public report links, payment history, and credit ledger.
+- Existing anonymous reports remain public because report ownership is nullable.
+
+[Whop-hosted Checkout](https://docs.whop.com/developer/guides/accept-payments) owns all payment-card collection. The browser submits only a credit-pack identifier and currency; the server resolves the configured Whop Plan ID, credit quantity, and expected amount. Credits are granted only after a signature-verified `payment.succeeded` webhook.
+
+Webhook event IDs, checkout IDs, and ledger references are unique, making retries idempotent. A scan atomically moves one credit from available to reserved, consumes it after a successful saved report, and releases it after parser, infrastructure, or persistence failure. Launch prices are centralized in `server/src/payments/pricing.config.ts`. Credits have no expiry date in the schema or business logic.
+
+Refund webhooks mark the payment `REFUNDED`. Unused purchased credits are reversed when the balance can remain non-negative; otherwise the payment is explicitly flagged for support review instead of silently creating a negative balance. Beta/support grants use the bearer-protected internal endpoint and produce `ADMIN_ADJUSTMENT` ledger entries.
+
 ### Reports and community feedback
 
 - Persists verification reports in Supabase
@@ -100,6 +114,8 @@ Deep Scan does **not** run Unity, compile scripts, compile shaders, execute uplo
 | Frontend | React 19, TypeScript, Vite, React Router, Tailwind CSS, Lucide icons |
 | Backend | Node.js 20+, Express 5, TypeScript, Zod |
 | Data | Supabase Postgres and Row Level Security |
+| Authentication | Supabase Auth with persistent browser sessions and server-side token verification |
+| Payments | Whop-hosted Checkout and Standard Webhooks signature verification behind a provider abstraction |
 | Asset metadata | Cheerio-based public listing parser |
 | Package inspection | Streaming gzip/tar inspection with bounded static text parsers |
 | Testing | Vitest and Supertest |
@@ -160,6 +176,7 @@ Run the migrations in `server/supabase/migrations/` in numeric order:
 3. `003_api_rate_limits.sql` creates the shared rate-limit table and atomic consumption function.
 4. `004_private_beta_hardening.sql` adds structured feedback, usefulness ratings, normalized comparison fields, beta events, and private-beta indexes.
 5. `005_deep_scan.sql` stores result-only Deep Scan summaries and extends allowlisted beta events.
+6. `006_accounts_and_billing.sql` adds profiles, report ownership, balances, the credit ledger, reservations, payment records, idempotent webhook processing, atomic billing functions, and account RLS.
 
 ### 3. Configure environment variables
 
@@ -171,6 +188,8 @@ Use `.env.example` as the template. Create separate `client/.env` and `server/.e
 VITE_API_URL=http://localhost:4000
 VITE_DEEP_SCAN_API_URL=http://localhost:4000
 VITE_MAX_PACKAGE_SIZE_MB=250
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_your-public-key
 ```
 
 `server/.env`:
@@ -183,6 +202,20 @@ RATE_LIMIT_STORE=memory
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=sb_secret_your-secret-key
 INTERNAL_METRICS_TOKEN=replace-with-a-long-random-token
+APP_URL=http://localhost:5173
+PAYMENT_PROVIDER=whop
+DEFAULT_PAYMENT_CURRENCY=INR
+WHOP_API_KEY=your-sandbox-api-key
+WHOP_COMPANY_ID=biz_your-sandbox-company-id
+WHOP_WEBHOOK_SECRET=ws_your-sandbox-webhook-secret
+WHOP_API_BASE_URL=https://sandbox-api.whop.com/api/v1
+WHOP_API_VERSION_DATE=2026-09-15
+WHOP_PLAN_DEEP_SCAN_1_INR=plan_sandbox_inr_1
+WHOP_PLAN_DEEP_SCAN_5_INR=plan_sandbox_inr_5
+WHOP_PLAN_DEEP_SCAN_15_INR=plan_sandbox_inr_15
+WHOP_PLAN_DEEP_SCAN_1_USD=plan_sandbox_usd_1
+WHOP_PLAN_DEEP_SCAN_5_USD=plan_sandbox_usd_5
+WHOP_PLAN_DEEP_SCAN_15_USD=plan_sandbox_usd_15
 DEEP_SCAN_ENABLED=true
 MAX_PACKAGE_SIZE_MB=250
 MAX_EXTRACTED_SIZE_MB=1000
@@ -225,8 +258,27 @@ npm run dev --prefix client
 | `POST` | `/api/reports/:id/usefulness` | Submit a separate report-usefulness rating |
 | `POST` | `/api/events` | Record an allowlisted, non-PII beta event |
 | `POST` | `/api/deep-scan` | Inspect a multipart Unity package on a Deep Scan-enabled runtime |
+| `GET` | `/api/account` | Retrieve the authenticated user's profile, balance, scans, and histories |
+| `GET` | `/api/account/credits` | Retrieve the authenticated user's available and reserved credits |
+| `GET` | `/api/payments/pricing` | Retrieve centralized credit-pack presentation |
+| `POST` | `/api/payments/checkout` | Create authenticated hosted checkout from a server-owned pack ID |
+| `GET` | `/api/payments/checkout/:id` | Retrieve an owned checkout record for the success page |
+| `POST` | `/api/payments/webhooks/whop` | Receive raw, signature-verified Whop webhook events |
 | `GET` | `/api/internal/beta-metrics` | Retrieve aggregate private-beta KPIs using a bearer token |
 | `GET` | `/api/internal/scoring-audit` | Export anonymized scoring data using a bearer token |
+| `POST` | `/api/internal/grant-credits` | Grant beta/support credits using the protected internal bearer token |
+
+## Whop sandbox setup
+
+Use Whop's sandbox for development so no real payment or production data is involved.
+
+1. Create a sandbox account and API key at `https://sandbox.whop.com`.
+2. Create six one-time plans for the 1, 5, and 15 credit packs in INR and USD, then put their `plan_...` IDs in the matching server environment variables. The browser never submits an amount or number of credits.
+3. Create a webhook pointing to `https://your-api.example/api/payments/webhooks/whop`. Subscribe to `payment.succeeded`, `payment.failed`, `refund.created`, and `refund.updated`, then copy its `ws_...` signing secret into `WHOP_WEBHOOK_SECRET`.
+4. Keep `WHOP_API_BASE_URL=https://sandbox-api.whop.com/api/v1` during development and use Whop's sandbox test cards.
+5. Confirm the webhook returns HTTP 200 and the payment changes to `SUCCEEDED`; only then should the credit balance increase. Switch the API URL, credentials, plan IDs, and webhook to production together when going live.
+
+The success redirect is informational. It polls the authenticated server record and never grants credits from its query string. If the redirect fails, the webhook still grants credits and they appear on the next dashboard load.
 
 ### Verification example
 
@@ -261,7 +313,7 @@ npm test
 npm run build
 ```
 
-The automated suite covers scoring and verification behavior, TTL caching, Asset Store URL validation, listing parsing, provider behavior, archive safety limits, and static Unity package parsing.
+The automated suite covers scoring, anonymous Quick Check, authorization middleware, server-owned pricing, Whop webhook signatures, paid-scan reservation and recovery, TTL caching, Asset Store URL validation, archive safety, and static package parsing. Payment tests use test fixtures and mocks; they never call a real payment API.
 
 ## Deployment architecture
 
@@ -295,7 +347,10 @@ Create two Vercel projects from this repository.
   - `CLIENT_ORIGIN=https://your-frontend-project.vercel.app`
   - `TRUST_PROXY_HOPS=1`
   - `RATE_LIMIT_STORE=supabase`
-- Run all five Supabase migrations before deploying.
+  - `APP_URL=https://your-frontend-project.vercel.app`
+  - `PAYMENT_PROVIDER=whop`
+  - Whop API key, company ID, webhook secret, API version, and configured Plan IDs
+- Run all seven Supabase migrations before deploying.
 - Set `INTERNAL_METRICS_TOKEN` to a long, random value and send it as `Authorization: Bearer <token>` only from trusted internal tools.
 
 ### Frontend project
@@ -305,6 +360,8 @@ Create two Vercel projects from this repository.
 - Required environment variable:
   - `VITE_API_URL=https://your-api-project.vercel.app`
   - `VITE_DEEP_SCAN_API_URL=https://your-dedicated-scan-service.example`
+  - `VITE_SUPABASE_URL=https://your-project.supabase.co`
+  - `VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...`
 
 Do not include a trailing slash in `CLIENT_ORIGIN` or `VITE_API_URL`. After either URL changes, update the matching environment variable and redeploy both projects. `client/vercel.json` handles SPA rewrites and browser headers; `server/vercel.json` configures the Express function.
 
@@ -313,6 +370,7 @@ Do not include a trailing slash in `CLIENT_ORIGIN` or `VITE_API_URL`. After eith
 - Quick Check evaluates user-supplied or user-confirmed metadata. Deep Scan inspects a package archive, but neither mode inspects the receiving Unity project itself.
 - Public listing extraction can be incomplete when the source page omits information or blocks retrieval.
 - Static package inspection cannot reproduce compilation, shader import, native plugin loading, or a real Unity import.
+- Deep Scan requires an account and one credit. Subscriptions, teams, custom promo codes, and automatic cash-refund UI are intentionally not part of v0.7.
 - The compatibility engine is deterministic guidance and cannot account for every package implementation detail.
 - Browser-local duplicate feedback prevention is a usability measure, not a security boundary.
 - Community feedback is informational and does not constitute AssetForge certification.
@@ -340,7 +398,7 @@ The protected metrics endpoint returns aggregates only. The scoring audit omits 
 
 ## Roadmap
 
-- **v0.7:** Scan history and report comparison
+- **Future AssetForge Verify Pro:** possible monthly Deep Scan allocation, higher package limits, scan comparison, team workspaces, and priority scans. This is a documentation placeholder only; v0.7 has no subscription.
 - **v0.8:** Creator verification workflow
 - **v1.0:** Public stable release
 - **v2:** Local project scanning and Unity-side integration
