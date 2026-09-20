@@ -76,11 +76,11 @@ Deep Scan does **not** run Unity, compile scripts, compile shaders, execute uplo
 - Signed-in users receive a dashboard with their credit balance, Quick Checks, Deep Scans, public report links, payment history, and credit ledger.
 - Existing anonymous reports remain public because report ownership is nullable.
 
-[Whop-hosted Checkout](https://docs.whop.com/developer/guides/accept-payments) owns all payment-card collection. The browser submits only a credit-pack identifier and currency; the server resolves the configured Whop Plan ID, credit quantity, and expected amount. Credits are granted only after a signature-verified `payment.succeeded` webhook.
+[Whop-hosted Checkout](https://docs.whop.com/developer/guides/accept-payments) owns all payment-card collection. The browser submits only a credit-pack identifier and currency; the server resolves the configured Whop Plan ID, credit quantity, and expected amount. Credits are granted only after a signature-verified `payment.succeeded` webhook matches the company, exact plan, authenticated user, pending checkout, and server-owned pack. The actual paid amount is stored separately so authorized Whop taxes and discounts do not break reconciliation.
 
 Webhook event IDs, checkout IDs, and ledger references are unique, making retries idempotent. A scan atomically moves one credit from available to reserved, consumes it after a successful saved report, and releases it after parser, infrastructure, or persistence failure. Launch prices are centralized in `server/src/payments/pricing.config.ts`. Credits have no expiry date in the schema or business logic.
 
-Refund webhooks mark the payment `REFUNDED`. Unused purchased credits are reversed when the balance can remain non-negative; otherwise the payment is explicitly flagged for support review instead of silently creating a negative balance. Beta/support grants use the bearer-protected internal endpoint and produce `ADMIN_ADJUSTMENT` ledger entries.
+Refunds are deduplicated by Whop refund ID and accumulated explicitly. Partial refunds mark the payment `PARTIALLY_REFUNDED`; credits are reversed only after cumulative refunds reach the actual paid amount. If the balance cannot remain non-negative, the payment is flagged and a structured `REVIEW_REQUIRED` log is emitted for support alerting. Beta/support grants use the bearer-protected internal endpoint and produce `ADMIN_ADJUSTMENT` ledger entries.
 
 ### Reports and community feedback
 
@@ -183,6 +183,7 @@ Run the migrations in `server/supabase/migrations/` in numeric order:
 6. `006_accounts_and_billing.sql` adds profiles, report ownership, balances, the credit ledger, reservations, payment records, idempotent webhook processing, atomic billing functions, and account RLS.
 7. `007_whop_payments.sql` adds Whop-specific transaction correlation and idempotent purchase, failure, and refund functions.
 8. `008_payment_security_hardening.sql` requires signed payment events to match a server-created pending checkout before credits can be minted and hardens refund state transitions.
+9. `009_payment_reconciliation.sql` binds purchases to exact Whop plans, stores actual paid amounts, accumulates and deduplicates partial refunds, and indexes refund cases requiring review.
 
 ### 3. Configure environment variables
 
@@ -352,7 +353,7 @@ Create two Vercel projects from this repository.
   - `APP_URL=https://your-frontend-project.vercel.app`
   - `PAYMENT_PROVIDER=whop`
   - Whop API key, company ID, webhook secret, API version, and configured Plan IDs
-- Run all eight Supabase migrations before deploying.
+- Run all nine Supabase migrations before deploying.
 - Set `INTERNAL_METRICS_TOKEN` to a long, random value and send it as `Authorization: Bearer <token>` only from trusted internal tools.
 
 ### Frontend project

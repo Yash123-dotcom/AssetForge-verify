@@ -19,4 +19,10 @@ describe('API transport security', () => {
     const rejected = await request(app).options('/api/health').set('Origin', 'https://evil.example').set('Access-Control-Request-Method', 'GET');
     expect(rejected.headers['access-control-allow-origin']).toBeUndefined();
   });
+
+  it('returns a client error for malformed JSON', async () => {
+    const response = await request(app).post('/api/events').set('Content-Type', 'application/json').send('{broken');
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({ code: 'INVALID_JSON', error: 'Request body must contain valid JSON.' });
+  });
 });

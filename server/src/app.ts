@@ -97,6 +97,11 @@ app.use('/api/payments', paymentRouter);
 app.use((_request, response) => { response.locals.errorCode = 'NOT_FOUND'; response.status(404).json({ code: 'NOT_FOUND', error: 'Not found' }); });
 app.use((error: unknown, _request: Request, response: Response, next: NextFunction) => {
   if (response.headersSent) { next(error); return; }
+  if (error instanceof SyntaxError && 'type' in error && error.type === 'entity.parse.failed') {
+    response.locals.errorCode = 'INVALID_JSON';
+    response.status(400).json({ code: 'INVALID_JSON', error: 'Request body must contain valid JSON.' });
+    return;
+  }
   console.error({ code: 'UNHANDLED_ERROR', name: error instanceof Error ? error.name : 'UnknownError' });
   response.locals.errorCode = 'INTERNAL_ERROR';
   response.status(500).json({ code: 'INTERNAL_ERROR', error: 'An unexpected server error occurred.' });

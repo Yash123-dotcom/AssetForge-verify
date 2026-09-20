@@ -57,11 +57,15 @@ const moneySchema = z.union([
 const paymentEventSchema = z.object({
   id: z.string().min(1),
   type: z.enum(['payment.succeeded', 'payment.failed']),
+  company_id: z.string().min(1),
   data: z.object({
     id: z.string().min(1),
     checkout_configuration_id: z.string().min(1).nullable(),
     currency: z.string(),
+    subtotal: moneySchema,
+    tax_amount: moneySchema.nullable(),
     total: moneySchema,
+    plan: z.object({ id: z.string().min(1) }).passthrough(),
     metadata: z.record(z.string(), z.unknown()).nullable(),
   }).passthrough(),
 }).passthrough();
@@ -69,10 +73,13 @@ const paymentEventSchema = z.object({
 const refundEventSchema = z.object({
   id: z.string().min(1),
   type: z.enum(['refund.created', 'refund.updated']),
+  company_id: z.string().min(1),
   data: z.object({
+    id: z.string().min(1),
     amount: moneySchema,
+    currency: z.string(),
     status: z.string(),
-    payment: z.object({ id: z.string().min(1), metadata: z.record(z.string(), z.unknown()).nullable() }).passthrough(),
+    payment: z.object({ id: z.string().min(1), plan: z.object({ id: z.string().min(1) }).passthrough() }).passthrough(),
   }).passthrough(),
 }).passthrough();
 
@@ -117,9 +124,12 @@ export class WhopPaymentService implements PaymentService {
     if (eventType.data.type === 'payment.succeeded' || eventType.data.type === 'payment.failed') {
       const parsed = paymentEventSchema.safeParse(rawEvent);
       if (!parsed.success) throw new ServiceError('INVALID_PAYMENT_EVENT', 'Payment webhook payload is invalid.', 400);
+      if (parsed.data.company_id !== process.env.WHOP_COMPANY_ID) throw new ServiceError('INVALID_PAYMENT_EVENT', 'Payment webhook company does not match.', 400);
       const metadata = metadataSchema.safeParse(parsed.data.data.metadata);
       if (!metadata.success || !parsed.data.data.checkout_configuration_id) return null;
       if (parsed.data.type === 'payment.failed') return { id: parsed.data.id, type: 'PURCHASE_FAILED', checkoutId: parsed.data.data.checkout_configuration_id };
+      const currency = parsed.data.data.currency.toUpperCase();
+      if (currency !== metadata.data.currency || (currency !== 'USD' && currency !== 'INR')) throw new ServiceError('INVALID_PAYMENT_EVENT', 'Payment currency does not match checkout metadata.', 400);
       return {
         id: parsed.data.id,
         type: 'PURCHASE_COMPLETED',
@@ -128,19 +138,23 @@ export class WhopPaymentService implements PaymentService {
         checkoutId: parsed.data.data.checkout_configuration_id,
         clientReferenceId: metadata.data.client_reference_id,
         paymentId: parsed.data.data.id,
+        planId: parsed.data.data.plan.id,
         packId: metadata.data.pack_id,
-        currency: metadata.data.currency,
-        amount: parsed.data.data.total,
+        currency,
+        subtotal: parsed.data.data.subtotal,
+        taxAmount: parsed.data.data.tax_amount ?? 0,
+        amountPaid: parsed.data.data.total,
         credits: metadata.data.credits,
       };
     }
     if (eventType.data.type === 'refund.created' || eventType.data.type === 'refund.updated') {
       const parsed = refundEventSchema.safeParse(rawEvent);
       if (!parsed.success) throw new ServiceError('INVALID_PAYMENT_EVENT', 'Payment webhook payload is invalid.', 400);
-      const metadata = metadataSchema.safeParse(parsed.data.data.payment.metadata);
-      if (!metadata.success) return null;
+      if (parsed.data.company_id !== process.env.WHOP_COMPANY_ID) throw new ServiceError('INVALID_PAYMENT_EVENT', 'Refund webhook company does not match.', 400);
+      const currency = parsed.data.data.currency.toUpperCase();
+      if (currency !== 'USD' && currency !== 'INR') throw new ServiceError('INVALID_PAYMENT_EVENT', 'Refund currency is unsupported.', 400);
       return parsed.data.data.status === 'succeeded'
-        ? { id: parsed.data.id, type: 'PAYMENT_REFUNDED', paymentId: parsed.data.data.payment.id, packId: metadata.data.pack_id, currency: metadata.data.currency, amount: parsed.data.data.amount }
+        ? { id: parsed.data.id, type: 'PAYMENT_REFUNDED', refundId: parsed.data.data.id, paymentId: parsed.data.data.payment.id, planId: parsed.data.data.payment.plan.id, currency, amount: parsed.data.data.amount }
         : null;
     }
     return null;

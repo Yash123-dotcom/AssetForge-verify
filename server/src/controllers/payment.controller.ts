@@ -32,7 +32,7 @@ export async function createCheckout(request: AuthenticatedRequest, response: Re
   try {
     const pack = creditPack(parsed.data.packId, parsed.data.currency); const base = frontendUrl();
     const checkout = await getPaymentService().createCheckout({ userId: request.authUser!.id, email: request.authUser!.email, packId: pack.id, credits: pack.credits, currency: pack.currency, planId: pack.providerPlanId, successUrl: `${base}/payment/success`, cancelUrl: `${base}/payment/cancelled`, idempotencyKey: parsed.data.idempotencyKey });
-    await createPendingPayment({ userId: request.authUser!.id, checkoutId: checkout.checkoutId, clientReferenceId: parsed.data.idempotencyKey, packId: pack.id, currency: pack.currency, amount: pack.amount, credits: pack.credits });
+    await createPendingPayment({ userId: request.authUser!.id, checkoutId: checkout.checkoutId, clientReferenceId: parsed.data.idempotencyKey, providerPlanId: pack.providerPlanId, packId: pack.id, currency: pack.currency, amount: pack.amount, credits: pack.credits });
     await createBetaEvent('checkout_started').catch(() => undefined);
     response.status(201).json({ checkoutId: checkout.checkoutId, url: checkout.url });
   } catch (error) { await createBetaEvent('checkout_failed').catch(() => undefined); sendServiceError(error, response); }
@@ -47,13 +47,15 @@ export async function receiveWhopWebhook(request: Request, response: Response): 
     if (!event) { response.json({ received: true }); return; }
     if (event.type === 'PURCHASE_COMPLETED') {
       const configuredPack = creditPack(event.packId, event.currency);
-      if (event.credits !== configuredPack.credits || event.amount !== configuredPack.amount) throw new ServiceError('PAYMENT_AMOUNT_MISMATCH', 'Verified payment details do not match the configured credit pack.', 400);
-      const credited = await completePurchase({ ...event, credits: configuredPack.credits, amount: configuredPack.amount, packId: configuredPack.id });
+      if (event.credits !== configuredPack.credits || event.planId !== configuredPack.providerPlanId || event.amountPaid <= 0) throw new ServiceError('PAYMENT_DETAILS_MISMATCH', 'Verified payment details do not match the configured credit pack.', 400);
+      const credited = await completePurchase({ ...event, credits: configuredPack.credits, expectedAmount: configuredPack.amount, packId: configuredPack.id });
       if (credited) { await createBetaEvent('checkout_completed').catch(() => undefined); await createBetaEvent('credit_added').catch(() => undefined); }
     } else if (event.type === 'PURCHASE_FAILED') await failPayment(event.id, event.checkoutId);
     else {
-      const configuredPack = creditPack(event.packId, event.currency);
-      if (event.amount >= configuredPack.amount) await refundPayment(event.id, event.paymentId);
+      const outcome = await refundPayment(event);
+      const log = { event: 'payment_refund_processed', payment_id: event.paymentId, refund_amount: event.amount, outcome };
+      if (outcome === 'REVIEW_REQUIRED') console.error(JSON.stringify(log));
+      else console.info(JSON.stringify(log));
     }
     response.json({ received: true });
   } catch (error) { sendServiceError(error, response); }

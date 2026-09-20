@@ -12,7 +12,7 @@ export async function getBetaMetrics() {
   const categoryCounts = (status: 'WARNING' | 'FAIL') => reports.flatMap((report) => report.checks ?? []).filter((check) => check.status === status).reduce<Record<string, number>>((all, check) => ({ ...all, [check.category]: (all[check.category] ?? 0) + 1 }), {});
   const topFive = (values: Record<string, number>) => Object.entries(values).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([category, total]) => ({ category, total }));
   const verifyStarts = count('verify_started');
-  const successfulPayments = payments.filter((payment) => payment.status === 'SUCCEEDED');
+  const successfulPayments = payments.filter((payment) => payment.status === 'SUCCEEDED' || payment.status === 'PARTIALLY_REFUNDED');
   const payingUsers = new Set(successfulPayments.map((payment) => payment.user_id));
   const creditsConsumed = Math.abs(creditTransactions.filter((entry) => entry.type === 'SCAN_USAGE').reduce((total, entry) => total + entry.amount, 0));
   const paidDeepScans = Math.abs(creditTransactions.filter((entry) => entry.type === 'SCAN_USAGE' && payingUsers.has(entry.user_id)).reduce((total, entry) => total + entry.amount, 0));
