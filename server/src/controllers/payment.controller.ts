@@ -15,6 +15,10 @@ function frontendUrl(): string {
   let url: URL;
   try { url = new URL(configured); } catch { throw new ServiceError('PAYMENT_NOT_CONFIGURED', 'The application URL is invalid.', 503); }
   if (!['http:', 'https:'].includes(url.protocol) || (process.env.NODE_ENV === 'production' && url.protocol !== 'https:')) throw new ServiceError('PAYMENT_NOT_CONFIGURED', 'The application URL must use HTTPS in production.', 503);
+  const allowedOrigins = (process.env.CLIENT_ORIGIN ?? '').split(',').map((value) => value.trim()).filter(Boolean).map((value) => {
+    try { return new URL(value).origin; } catch { return ''; }
+  });
+  if (process.env.NODE_ENV === 'production' && !allowedOrigins.includes(url.origin)) throw new ServiceError('PAYMENT_NOT_CONFIGURED', 'The application URL must match an allowed client origin.', 503);
   return url.origin;
 }
 

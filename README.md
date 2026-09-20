@@ -104,6 +104,10 @@ Refund webhooks mark the payment `REFUNDED`. Unused purchased credits are revers
 - Shared Supabase-backed rate-limit storage for serverless production deployments
 - Row Level Security on application tables with backend-only service-role access
 - Frontend security headers and SPA rewrites configured for Vercel
+- No-store API responses, strict production origin validation, and sanitized fallback errors
+- Strict bearer-token parsing and fail-closed authentication service errors
+- Whop API host allowlisting and server-owned checkout/credit reconciliation
+- Multipart field allowlisting, duplicate rejection, and bounded part counts
 - Stable API error codes, recovery actions, and privacy-safe structured request logs
 - Protected aggregate beta metrics and anonymized scoring-audit endpoints
 
@@ -177,6 +181,8 @@ Run the migrations in `server/supabase/migrations/` in numeric order:
 4. `004_private_beta_hardening.sql` adds structured feedback, usefulness ratings, normalized comparison fields, beta events, and private-beta indexes.
 5. `005_deep_scan.sql` stores result-only Deep Scan summaries and extends allowlisted beta events.
 6. `006_accounts_and_billing.sql` adds profiles, report ownership, balances, the credit ledger, reservations, payment records, idempotent webhook processing, atomic billing functions, and account RLS.
+7. `007_whop_payments.sql` adds Whop-specific transaction correlation and idempotent purchase, failure, and refund functions.
+8. `008_payment_security_hardening.sql` requires signed payment events to match a server-created pending checkout before credits can be minted and hardens refund state transitions.
 
 ### 3. Configure environment variables
 
@@ -350,7 +356,7 @@ Create two Vercel projects from this repository.
   - `APP_URL=https://your-frontend-project.vercel.app`
   - `PAYMENT_PROVIDER=whop`
   - Whop API key, company ID, webhook secret, API version, and configured Plan IDs
-- Run all seven Supabase migrations before deploying.
+- Run all eight Supabase migrations before deploying.
 - Set `INTERNAL_METRICS_TOKEN` to a long, random value and send it as `Authorization: Bearer <token>` only from trusted internal tools.
 
 ### Frontend project

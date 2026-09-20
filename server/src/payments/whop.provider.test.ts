@@ -1,6 +1,6 @@
 import { createHmac } from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { WhopPaymentService } from './whop.provider.js';
+import { validatedCheckoutUrl, WhopPaymentService } from './whop.provider.js';
 
 const secret = 'ws_assetforge_test_secret';
 
@@ -16,6 +16,12 @@ beforeEach(() => { process.env.WHOP_WEBHOOK_SECRET = secret; });
 afterEach(() => { delete process.env.WHOP_WEBHOOK_SECRET; });
 
 describe('Whop payment provider', () => {
+  it('allows only trusted HTTPS Whop checkout URLs', () => {
+    expect(validatedCheckoutUrl('https://sandbox.whop.com/checkout/plan_test')).toBe('https://sandbox.whop.com/checkout/plan_test');
+    expect(() => validatedCheckoutUrl('https://whop.com.evil.example/checkout/plan_test')).toThrow('untrusted checkout URL');
+    expect(() => validatedCheckoutUrl('http://whop.com/checkout/plan_test')).toThrow('untrusted checkout URL');
+  });
+
   it('normalizes a verified successful payment into minor currency units', () => {
     const webhook = signed({
       id: 'msg_success', type: 'payment.succeeded',

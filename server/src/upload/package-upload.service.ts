@@ -18,11 +18,12 @@ export async function receivePackageUpload(request: Request): Promise<UploadedPa
   const directory = await createScanTempDirectory();
   const path = join(directory, 'package.upload');
   const fields: Record<string, string> = {};
+  const allowedFields = new Set(['projectUnityVersion', 'projectPipeline', 'projectPlatform', 'idempotencyKey']);
   let fileName = ''; let fileSeen = false; let uploadError: Error | null = null; let writePromise: Promise<void> | null = null;
   try {
     await new Promise<void>((resolve, reject) => {
       let parser: ReturnType<typeof Busboy>;
-      try { parser = Busboy({ headers: request.headers, limits: { files: 1, fields: 6, fileSize: limits.maxPackageBytes, fieldSize: 200 } }); }
+      try { parser = Busboy({ headers: request.headers, limits: { files: 1, fields: 5, parts: 6, fileSize: limits.maxPackageBytes, fieldSize: 200 } }); }
       catch { reject(new DeepScanError('INVALID_UPLOAD', 'The multipart upload could not be read.', 400)); return; }
       parser.on('file', (fieldName, stream, info) => {
         if (fieldName !== 'file' || fileSeen) { stream.resume(); uploadError = new DeepScanError('INVALID_UPLOAD', 'Upload exactly one package file.', 400); return; }
@@ -32,7 +33,13 @@ export async function receivePackageUpload(request: Request): Promise<UploadedPa
         stream.once('limit', () => { uploadError = new DeepScanError('PACKAGE_TOO_LARGE', 'This package is larger than the current Deep Scan limit.', 413); });
         writePromise = pipeline(stream, createWriteStream(path));
       });
-      parser.on('field', (name, value) => { fields[name] = value; });
+      parser.on('field', (name, value) => {
+        if (!allowedFields.has(name) || Object.hasOwn(fields, name)) {
+          uploadError = new DeepScanError('INVALID_UPLOAD', 'The upload contains an unexpected or duplicate project field.', 400);
+          return;
+        }
+        fields[name] = value;
+      });
       parser.once('filesLimit', () => { uploadError = new DeepScanError('INVALID_UPLOAD', 'Upload exactly one package file.', 400); });
       parser.once('fieldsLimit', () => { uploadError = new DeepScanError('INVALID_UPLOAD', 'The upload contains too many project fields.', 400); });
       parser.once('partsLimit', () => { uploadError = new DeepScanError('INVALID_UPLOAD', 'The upload contains too many multipart sections.', 400); });

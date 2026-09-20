@@ -6,13 +6,30 @@ import type { CheckoutRequest, CheckoutResult, PaymentEvent, PaymentService, Web
 
 let whop: WhopClient | undefined;
 
+function configuredBaseUrl(): string {
+  const value = (process.env.WHOP_API_BASE_URL ?? 'https://api.whop.com/api/v1').replace(/\/$/, '');
+  const allowed = new Set(['https://api.whop.com/api/v1', 'https://sandbox-api.whop.com/api/v1']);
+  if (!allowed.has(value)) throw new ServiceError('PAYMENT_NOT_CONFIGURED', 'The Whop API URL is not allowed.', 503);
+  return value;
+}
+
+export function validatedCheckoutUrl(value: string): string {
+  let url: URL;
+  try { url = new URL(value); } catch { throw new ServiceError('CHECKOUT_FAILED', 'Whop returned an invalid checkout URL.', 502); }
+  const allowedHosts = new Set(['whop.com', 'www.whop.com', 'checkout.whop.com', 'sandbox.whop.com']);
+  if (url.protocol !== 'https:' || !allowedHosts.has(url.hostname) || url.username || url.password || url.port) {
+    throw new ServiceError('CHECKOUT_FAILED', 'Whop returned an untrusted checkout URL.', 502);
+  }
+  return url.href;
+}
+
 function client(): WhopClient {
   const token = process.env.WHOP_API_KEY;
   if (!token) throw new ServiceError('PAYMENT_NOT_CONFIGURED', 'Whop checkout is not configured.', 503);
   whop ??= new WhopClient({
     token,
     apiVersionDate: process.env.WHOP_API_VERSION_DATE ?? '2026-09-15',
-    baseUrl: process.env.WHOP_API_BASE_URL ?? 'https://api.whop.com/api/v1',
+    baseUrl: configuredBaseUrl(),
   });
   return whop;
 }
@@ -79,7 +96,7 @@ export class WhopPaymentService implements PaymentService {
       },
     }, { idempotencyKey: `assetforge:${request.userId}:${request.idempotencyKey}` });
     if (!checkout.purchase_url) throw new ServiceError('CHECKOUT_FAILED', 'Whop did not return a checkout URL.', 502);
-    return { checkoutId: checkout.id, url: checkout.purchase_url, paymentStatus: 'pending' };
+    return { checkoutId: checkout.id, url: validatedCheckoutUrl(checkout.purchase_url), paymentStatus: 'pending' };
   }
 
   verifyWebhook(payload: Buffer, headers: WebhookHeaders): PaymentEvent | null {

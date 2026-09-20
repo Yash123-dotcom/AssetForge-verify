@@ -27,4 +27,14 @@ describe('Supabase session authorization', () => {
     const expired = await request(app).get('/private').set('Authorization', 'Bearer expired-session');
     expect(expired.status).toBe(401); expect(expired.body.code).toBe('AUTH_SESSION_INVALID');
   });
+
+  it('rejects malformed authorization instead of treating it as anonymous', async () => {
+    const response = await request(app).get('/optional').set('Authorization', 'Basic abc123');
+    expect(response.status).toBe(401); expect(response.body.code).toBe('AUTH_SESSION_INVALID');
+  });
+
+  it('accepts the bearer scheme case-insensitively', async () => {
+    const response = await request(app).get('/private').set('Authorization', 'bearer valid-session');
+    expect(response.status).toBe(200); expect(response.body.userId).toBe('user-1');
+  });
 });
