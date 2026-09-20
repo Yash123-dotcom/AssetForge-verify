@@ -73,3 +73,5 @@ app.use('/api/deep-scan', deepScanRouter);
 app.use('/api/account', accountRouter);
 app.use('/api/payments', paymentRouter);
 app.use((_request, response) => { response.locals.errorCode = 'NOT_FOUND'; response.status(404).json({ code: 'NOT_FOUND', error: 'Not found' }); });
+
+export default app;
