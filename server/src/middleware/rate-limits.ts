@@ -1,4 +1,4 @@
-import * as rateLimitModule from 'express-rate-limit';
+import { rateLimit } from 'express-rate-limit';
 import { SupabaseRateLimitStore } from './rate-limit-store.js';
 
 const WINDOW_MS = 15 * 60 * 1000;
@@ -12,7 +12,7 @@ function limiter(identifier: string, limit: number, message: string) {
   const sharedStore = storeMode === 'supabase'
     ? new SupabaseRateLimitStore(`assetforge:${identifier}`)
     : undefined;
-  return rateLimitModule.rateLimit({
+  return rateLimit({
     windowMs: WINDOW_MS,
     limit,
     identifier,
