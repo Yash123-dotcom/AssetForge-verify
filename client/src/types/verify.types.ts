@@ -40,7 +40,7 @@ export type DeepScanResult = {
 };
 export type DeepScanResponse = { scanId: string; scan: DeepScanResult; report: VerificationReport; availableCredits: number };
 export type Currency = 'INR' | 'USD';
-export type CreditPack = { id: 'DEEP_SCAN_1' | 'DEEP_SCAN_5' | 'DEEP_SCAN_15'; credits: number; popular: boolean; prices: Record<Currency, { amount: number; formatted: string }> };
+export type CreditPack = { id: 'DEEP_SCAN_1' | 'DEEP_SCAN_5' | 'DEEP_SCAN_15'; credits: number; popular: boolean; prices: Record<'USD', { amount: number; formatted: string }> };
 export type AccountData = {
   profile: { email: string; displayName: string | null; createdAt: string };
   balance: { availableCredits: number; reservedCredits: number; updatedAt: string };

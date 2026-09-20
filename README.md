@@ -210,15 +210,11 @@ SUPABASE_SERVICE_ROLE_KEY=sb_secret_your-secret-key
 INTERNAL_METRICS_TOKEN=replace-with-a-long-random-token
 APP_URL=http://localhost:5173
 PAYMENT_PROVIDER=whop
-DEFAULT_PAYMENT_CURRENCY=INR
 WHOP_API_KEY=your-sandbox-api-key
 WHOP_COMPANY_ID=biz_your-sandbox-company-id
 WHOP_WEBHOOK_SECRET=ws_your-sandbox-webhook-secret
 WHOP_API_BASE_URL=https://sandbox-api.whop.com/api/v1
 WHOP_API_VERSION_DATE=2026-09-15
-WHOP_PLAN_DEEP_SCAN_1_INR=plan_sandbox_inr_1
-WHOP_PLAN_DEEP_SCAN_5_INR=plan_sandbox_inr_5
-WHOP_PLAN_DEEP_SCAN_15_INR=plan_sandbox_inr_15
 WHOP_PLAN_DEEP_SCAN_1_USD=plan_sandbox_usd_1
 WHOP_PLAN_DEEP_SCAN_5_USD=plan_sandbox_usd_5
 WHOP_PLAN_DEEP_SCAN_15_USD=plan_sandbox_usd_15
@@ -279,7 +275,7 @@ npm run dev --prefix client
 Use Whop's sandbox for development so no real payment or production data is involved.
 
 1. Create a sandbox account and API key at `https://sandbox.whop.com`.
-2. Create six one-time plans for the 1, 5, and 15 credit packs in INR and USD, then put their `plan_...` IDs in the matching server environment variables. The browser never submits an amount or number of credits.
+2. Create three one-time USD plans for the 1, 5, and 15 credit packs, then put their `plan_...` IDs in the matching server environment variables. The browser never submits an amount or number of credits.
 3. Create a webhook pointing to `https://your-api.example/api/payments/webhooks/whop`. Subscribe to `payment.succeeded`, `payment.failed`, `refund.created`, and `refund.updated`, then copy its `ws_...` signing secret into `WHOP_WEBHOOK_SECRET`.
 4. Keep `WHOP_API_BASE_URL=https://sandbox-api.whop.com/api/v1` during development and use Whop's sandbox test cards.
 5. Confirm the webhook returns HTTP 200 and the payment changes to `SUCCEEDED`; only then should the credit balance increase. Switch the API URL, credentials, plan IDs, and webhook to production together when going live.

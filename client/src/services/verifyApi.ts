@@ -1,4 +1,4 @@
-import type { AccountData, AssetListingAnalysis, CreditPack, Currency, DeepScanResponse, FeedbackCategory, FeedbackOutcome, FeedbackSummary, UsefulnessRating, VerificationReport, VerifyRequest } from '../types/verify.types';
+import type { AccountData, AssetListingAnalysis, CreditPack, DeepScanResponse, FeedbackCategory, FeedbackOutcome, FeedbackSummary, UsefulnessRating, VerificationReport, VerifyRequest } from '../types/verify.types';
 import { accessToken } from './supabase';
 
 const API_URL = (import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:4000' : '')).replace(/\/$/, '');
@@ -107,13 +107,13 @@ export async function deepScanPackage(file: File, project: VerifyRequest['projec
   });
 }
 
-export async function getPricing(): Promise<{ packs: CreditPack[]; defaultCurrency: Currency; creditsExpire: boolean }> {
+export async function getPricing(): Promise<{ packs: CreditPack[]; defaultCurrency: 'USD'; creditsExpire: boolean }> {
   const response = await fetch(endpoint('/api/payments/pricing'));
   if (!response.ok) throw await responseError(response, 'Pricing could not be loaded.');
   return response.json();
 }
 
-export async function createCheckout(packId: CreditPack['id'], currency: Currency): Promise<{ checkoutId: string; url: string }> {
+export async function createCheckout(packId: CreditPack['id'], currency: 'USD'): Promise<{ checkoutId: string; url: string }> {
   const response = await fetch(endpoint('/api/payments/checkout'), { method: 'POST', headers: await authHeaders(true), body: JSON.stringify({ packId, currency, idempotencyKey: crypto.randomUUID() }) });
   if (!response.ok) throw await responseError(response, 'Checkout could not be started.');
   return response.json();

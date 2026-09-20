@@ -8,7 +8,7 @@ import { createBetaEvent } from '../repositories/metrics.repository.js';
 import { checkoutStatus, completePurchase, createPendingPayment, failPayment, refundPayment } from '../repositories/payment.repository.js';
 import { sendServiceError } from './error-response.js';
 
-const checkoutSchema = z.object({ packId: z.enum(['DEEP_SCAN_1', 'DEEP_SCAN_5', 'DEEP_SCAN_15']), currency: z.enum(['INR', 'USD']), idempotencyKey: z.string().uuid() }).strict();
+const checkoutSchema = z.object({ packId: z.enum(['DEEP_SCAN_1', 'DEEP_SCAN_5', 'DEEP_SCAN_15']), currency: z.literal('USD'), idempotencyKey: z.string().uuid() }).strict();
 function frontendUrl(): string {
   const configured = process.env.APP_URL ?? process.env.CLIENT_ORIGIN?.split(',')[0];
   if (!configured) throw new ServiceError('PAYMENT_NOT_CONFIGURED', 'The application URL is not configured.', 503);
@@ -23,7 +23,7 @@ function frontendUrl(): string {
 }
 
 export function readPricing(_request: Request, response: Response): void {
-  response.json({ packs: CREDIT_PACKS, defaultCurrency: (process.env.DEFAULT_PAYMENT_CURRENCY ?? 'INR').toUpperCase() === 'USD' ? 'USD' : 'INR', creditsExpire: false });
+  response.json({ packs: CREDIT_PACKS, defaultCurrency: 'USD', creditsExpire: false });
 }
 
 export async function createCheckout(request: AuthenticatedRequest, response: Response): Promise<void> {
