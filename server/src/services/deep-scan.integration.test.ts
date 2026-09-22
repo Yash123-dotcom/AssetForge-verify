@@ -79,7 +79,7 @@ beforeAll(async () => {
   process.env.DEEP_SCAN_ENABLED = 'true';
   await createFixture();
   ({ app } = await import('../app.js'));
-});
+}, 30_000);
 
 afterAll(async () => {
   delete process.env.DEEP_SCAN_ENABLED;

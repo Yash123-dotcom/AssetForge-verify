@@ -49,6 +49,11 @@ describe('Whop payment provider', () => {
     expect(() => new WhopPaymentService().verifyWebhook(webhook.payload, { ...webhook.headers, signature: 'v1,invalid' })).toThrow('Invalid payment webhook signature.');
   });
 
+  it('records a failed checkout even when Whop omits payment metadata', () => {
+    const webhook = signed({ id: 'msg_failed', type: 'payment.failed', company_id: 'biz_assetforge', data: { id: 'pay_failed', checkout_configuration_id: 'ch_failed', metadata: null } });
+    expect(new WhopPaymentService().verifyWebhook(webhook.payload, webhook.headers)).toEqual({ id: 'msg_failed', type: 'PURCHASE_FAILED', checkoutId: 'ch_failed' });
+  });
+
   it('normalizes refund amounts so the controller can reject partial reversals', () => {
     const webhook = signed({ id: 'msg_refund', type: 'refund.created', company_id: 'biz_assetforge', data: { id: 'rf_assetforge', amount: 1, currency: 'usd', status: 'succeeded', payment: { id: 'pay_assetforge', plan: { id: 'plan_assetforge' } } } });
     expect(new WhopPaymentService().verifyWebhook(webhook.payload, webhook.headers)).toMatchObject({ type: 'PAYMENT_REFUNDED', refundId: 'rf_assetforge', amount: 100, planId: 'plan_assetforge', currency: 'USD' });

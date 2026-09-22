@@ -6,7 +6,7 @@ AssetForge Verify is a production-focused compatibility intelligence tool for Un
 
 **Current version:** v0.7 Private Beta — Accounts and Deep Scan credits
 
-**Live frontend:** [asset-forge-verify-client.vercel.app](https://asset-forge-verify-client.vercel.app/)
+**Live frontend:** [verify.assetforge.co.in](https://verify.assetforge.co.in/)
 
 ## What is implemented
 
@@ -347,10 +347,10 @@ Create two Vercel projects from this repository.
 - Required environment variables:
   - `SUPABASE_URL`
   - `SUPABASE_SERVICE_ROLE_KEY`
-  - `CLIENT_ORIGIN=https://your-frontend-project.vercel.app`
+  - `CLIENT_ORIGIN=https://verify.assetforge.co.in`
   - `TRUST_PROXY_HOPS=1`
   - `RATE_LIMIT_STORE=supabase`
-  - `APP_URL=https://your-frontend-project.vercel.app`
+  - `APP_URL=https://verify.assetforge.co.in`
   - `PAYMENT_PROVIDER=whop`
   - Whop API key, company ID, webhook secret, API version, and configured Plan IDs
 - Run all nine Supabase migrations before deploying.
@@ -367,6 +367,8 @@ Create two Vercel projects from this repository.
   - `VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...`
 
 Do not include a trailing slash in `CLIENT_ORIGIN` or `VITE_API_URL`. After either URL changes, update the matching environment variable and redeploy both projects. `client/vercel.json` handles SPA rewrites and browser headers; `server/vercel.json` configures the Express function.
+
+For the custom frontend domain, set the Supabase Auth **Site URL** to `https://verify.assetforge.co.in` and allow the redirect URLs `https://verify.assetforge.co.in/dashboard` and `https://verify.assetforge.co.in/account` (used by confirmation/magic links and password recovery). Keep any Vercel preview URLs in the redirect allowlist only if preview authentication is needed. After changing `CLIENT_ORIGIN` or `APP_URL` in Vercel, redeploy the API so browser requests and Whop success redirects use the custom domain.
 
 ## Current limitations
 

@@ -56,7 +56,7 @@ const moneySchema = z.union([
 
 const paymentEventSchema = z.object({
   id: z.string().min(1),
-  type: z.enum(['payment.succeeded', 'payment.failed']),
+  type: z.literal('payment.succeeded'),
   company_id: z.string().min(1),
   data: z.object({
     id: z.string().min(1),
@@ -68,6 +68,13 @@ const paymentEventSchema = z.object({
     plan: z.object({ id: z.string().min(1) }).passthrough(),
     metadata: z.record(z.string(), z.unknown()).nullable(),
   }).passthrough(),
+}).passthrough();
+
+const failedPaymentEventSchema = z.object({
+  id: z.string().min(1),
+  type: z.literal('payment.failed'),
+  company_id: z.string().min(1),
+  data: z.object({ checkout_configuration_id: z.string().min(1).nullable() }).passthrough(),
 }).passthrough();
 
 const refundEventSchema = z.object({
@@ -121,13 +128,20 @@ export class WhopPaymentService implements PaymentService {
 
     const eventType = z.object({ type: z.string() }).safeParse(rawEvent);
     if (!eventType.success) throw new ServiceError('INVALID_PAYMENT_EVENT', 'Payment webhook payload is invalid.', 400);
-    if (eventType.data.type === 'payment.succeeded' || eventType.data.type === 'payment.failed') {
+    if (eventType.data.type === 'payment.failed') {
+      const parsed = failedPaymentEventSchema.safeParse(rawEvent);
+      if (!parsed.success) throw new ServiceError('INVALID_PAYMENT_EVENT', 'Payment webhook payload is invalid.', 400);
+      if (parsed.data.company_id !== process.env.WHOP_COMPANY_ID) throw new ServiceError('INVALID_PAYMENT_EVENT', 'Payment webhook company does not match.', 400);
+      return parsed.data.data.checkout_configuration_id
+        ? { id: parsed.data.id, type: 'PURCHASE_FAILED', checkoutId: parsed.data.data.checkout_configuration_id }
+        : null;
+    }
+    if (eventType.data.type === 'payment.succeeded') {
       const parsed = paymentEventSchema.safeParse(rawEvent);
       if (!parsed.success) throw new ServiceError('INVALID_PAYMENT_EVENT', 'Payment webhook payload is invalid.', 400);
       if (parsed.data.company_id !== process.env.WHOP_COMPANY_ID) throw new ServiceError('INVALID_PAYMENT_EVENT', 'Payment webhook company does not match.', 400);
       const metadata = metadataSchema.safeParse(parsed.data.data.metadata);
       if (!metadata.success || !parsed.data.data.checkout_configuration_id) return null;
-      if (parsed.data.type === 'payment.failed') return { id: parsed.data.id, type: 'PURCHASE_FAILED', checkoutId: parsed.data.data.checkout_configuration_id };
       const currency = parsed.data.data.currency.toUpperCase();
       if (currency !== metadata.data.currency || (currency !== 'USD' && currency !== 'INR')) throw new ServiceError('INVALID_PAYMENT_EVENT', 'Payment currency does not match checkout metadata.', 400);
       return {
