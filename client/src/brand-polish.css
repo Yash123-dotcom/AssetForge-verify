@@ -123,10 +123,10 @@ body::before {
 .hero-kicker > span:last-child { justify-self: end; }
 .hero-logo-signature { color: var(--brand-accent); }
 .brand-hero h1 {
-  max-width: 1320px;
+  max-width: 1420px;
   margin: 74px auto 0;
   font-family: var(--brand-display);
-  font-size: clamp(5.4rem, 11.5vw, 11.6rem);
+  font-size: clamp(4.8rem, 10vw, 10.5rem);
   font-weight: 550;
   line-height: .74;
   letter-spacing: -.078em;
@@ -142,7 +142,9 @@ body::before {
   margin-top: 76px;
 }
 .hero-support p { grid-column: 1 / 6; max-width: 590px; margin: 0; color: #abb2ac; font-size: 1.02rem; line-height: 1.75; }
-.hero-support .editorial-button { grid-column: 10 / 13; }
+.hero-action { grid-column: 10 / 13; display: grid; gap: 10px; }
+.hero-action small { color: #7d867f; font-size: .61rem; letter-spacing: .05em; text-align: right; }
+.hero-action .editorial-button { width: 100%; }
 .editorial-button {
   position: relative;
   overflow: hidden;
@@ -378,7 +380,7 @@ body::before {
   .shell, .footer-shell, .navbar .nav-inner { width: min(100% - 48px,1504px); }
   .navbar .nav-inner { grid-template-columns: 1fr auto; }
   .hero-support p { grid-column: 1 / 8; }
-  .hero-support .editorial-button { grid-column: 9 / 13; }
+  .hero-action { grid-column: 9 / 13; }
   .verify-workspace { grid-template-columns: 210px minmax(0,1fr); gap: 30px; }
   .field-grid { grid-template-columns: 1fr; }
   .score-content > div:first-child { padding-inline: 6vw; }
@@ -396,8 +398,9 @@ body::before {
   .hero-kicker .hero-logo-signature { display: none; }
   .brand-hero h1 { margin-top: 60px; font-size: clamp(4.2rem,16vw,8rem); }
   .hero-support { grid-template-columns: 1fr; margin-top: 55px; }
-  .hero-support p, .hero-support .editorial-button { grid-column: auto; }
-  .hero-support .editorial-button { width: min(100%,360px); margin-top: 20px; }
+  .hero-support p, .hero-action { grid-column: auto; }
+  .hero-action { width: min(100%,360px); margin-top: 20px; }
+  .hero-action small { text-align: left; }
   .hero-proof { grid-template-columns: 1fr; }
   .hero-proof span + span { border-left: 0; border-top: 1px solid var(--brand-line); }
   .showcase-grid, .score-content { grid-template-columns: 1fr; }
