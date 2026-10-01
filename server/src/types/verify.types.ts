@@ -30,7 +30,20 @@ export type AssetReportMetadata = {
   fieldConfidence?: Partial<Record<'unityVersion' | 'pipeline' | 'dependencies' | 'shaders', DataConfidence>>;
 };
 export type Confidence = 'HIGH' | 'MEDIUM' | 'LOW';
-export type AssetListingAnalysis = { source: 'UNITY_ASSET_STORE'; url: string; assetName: string | null; publisherName: string | null; category: string | null; unityVersion: UnityVersion | null; pipelineSupport: Pipeline[]; dependencies: string[]; customShaders: boolean | 'UNKNOWN'; platforms: string[]; latestUpdate: string | null; description: string | null; packageVersion: string | null; confidence: { unityVersion: Confidence; pipeline: Confidence; dependencies: Confidence; shaders: Confidence } };
+export type AssetListingSourceMetadata = {
+  provider: 'FIRECRAWL' | 'UNITY_ASSET_STORE_HTML';
+  cache: 'MISS' | 'HIT' | 'STALE_FALLBACK' | 'FALLBACK';
+  retrievedAt: string;
+};
+
+export type AssetListingAnalysis = {
+  source: 'UNITY_ASSET_STORE'; url: string; assetName: string | null; publisherName: string | null; category: string | null;
+  unityVersion: UnityVersion | null; pipelineSupport: Pipeline[]; dependencies: string[]; requiredPackages?: string[];
+  customShaders: boolean | 'UNKNOWN'; shaderSignals?: string[]; features?: string[]; documentationLinks?: string[];
+  platforms: string[]; latestUpdate: string | null; description: string | null; packageVersion: string | null;
+  confidence: { unityVersion: Confidence; pipeline: Confidence; dependencies: Confidence; shaders: Confidence };
+  sourceMetadata?: AssetListingSourceMetadata;
+};
 
 export type CheckResult = {
   id: string;

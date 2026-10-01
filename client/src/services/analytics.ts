@@ -4,7 +4,7 @@ type AnalyticsEvent = 'asset_url_submitted' | 'asset_analysis_success' | 'asset_
 
 const API_URL = (import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:4000' : '')).replace(/\/$/, '');
 const internalEvents: Partial<Record<AnalyticsEvent, string>> = {
-  verification_started: 'verify_started', asset_analysis_success: 'analysis_succeeded', asset_analysis_partial: 'analysis_succeeded', asset_analysis_failed: 'analysis_failed',
+  verification_started: 'verify_started', asset_url_submitted: 'asset_store_url_submitted', asset_analysis_success: 'analysis_succeeded', asset_analysis_partial: 'analysis_succeeded', asset_analysis_failed: 'analysis_failed',
   beta_started: 'beta_started', verify_abandoned: 'verify_abandoned', report_viewed: 'report_viewed', top_issue_seen: 'top_issue_seen', feedback_started: 'feedback_started', feedback_completed: 'feedback_completed', usefulness_submitted: 'usefulness_submitted', assetforge_cta_clicked: 'assetforge_cta_clicked', retry_after_error: 'retry_after_error', report_shared: 'report_shared',
   deep_scan_report_viewed: 'deep_scan_report_viewed',
   pricing_viewed: 'pricing_viewed', credit_pack_selected: 'credit_pack_selected', deep_scan_paywall_seen: 'deep_scan_paywall_seen', deep_scan_purchase_prompt_clicked: 'deep_scan_purchase_prompt_clicked',

@@ -47,10 +47,12 @@ Checks carry `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`, or `INFO` severity and are pri
 ### Unity Asset Store analysis
 
 - Accepts public HTTPS URLs under `assetstore.unity.com/packages/...`
-- Extracts available listing metadata such as asset name, publisher, Unity version, render-pipeline support, dependencies, shader signals, platforms, update date, and package version
+- Uses Firecrawl's server-side structured scrape API as the primary public-listing acquisition layer, with the existing bounded Unity Asset Store parser as a resilient fallback
+- Extracts available listing metadata such as asset name, publisher, Unity version, render-pipeline support, dependencies, required packages, shader/VFX signals, platforms, documentation links, update date, and package version
 - Reports confidence per extracted field
 - Keeps manual entry and correction available when public metadata is missing or inaccurate
 - Stores listing provenance with the resulting report
+- Caches normalized public listing data in Supabase for 24 hours, uses a short in-process cache for hot requests, coalesces concurrent requests per URL, and can return clearly labelled stale cached data when both acquisition paths are unavailable
 
 ### Deep Scan
 
@@ -184,6 +186,7 @@ Run the migrations in `server/supabase/migrations/` in numeric order:
 7. `007_whop_payments.sql` adds Whop-specific transaction correlation and idempotent purchase, failure, and refund functions.
 8. `008_payment_security_hardening.sql` requires signed payment events to match a server-created pending checkout before credits can be minted and hardens refund state transitions.
 9. `009_payment_reconciliation.sql` binds purchases to exact Whop plans, stores actual paid amounts, accumulates and deduplicates partial refunds, and indexes refund cases requiring review.
+10. `010_firecrawl_listing_cache.sql` adds the service-role-only public-listing cache and Firecrawl acquisition analytics events.
 
 ### 3. Configure environment variables
 
@@ -219,6 +222,7 @@ WHOP_API_VERSION_DATE=2026-09-15
 WHOP_PLAN_DEEP_SCAN_1_USD=plan_sandbox_usd_1
 WHOP_PLAN_DEEP_SCAN_5_USD=plan_sandbox_usd_5
 WHOP_PLAN_DEEP_SCAN_15_USD=plan_sandbox_usd_15
+FIRECRAWL_API_KEY=fc_your-server-only-api-key
 DEEP_SCAN_ENABLED=true
 MAX_PACKAGE_SIZE_MB=250
 MAX_EXTRACTED_SIZE_MB=1000
@@ -230,6 +234,8 @@ DEEP_SCAN_TIMEOUT_SECONDS=120
 ```
 
 The Supabase secret key is backend-only. Never place it in `client/.env`, expose it in browser code, prefix it with `VITE_`, commit it, or share it publicly. Rotate the key immediately if it is exposed.
+
+`FIRECRAWL_API_KEY` is backend-only as well. Create it in Firecrawl, add it only to the API project's server environment, and never prefix it with `VITE_`. When it is absent or Firecrawl is temporarily unavailable, Quick Check retains the existing bounded direct listing parser as a fallback; no browser receives the key or Firecrawl response internals.
 
 ### 4. Start both applications
 
@@ -352,8 +358,9 @@ Create two Vercel projects from this repository.
   - `RATE_LIMIT_STORE=supabase`
   - `APP_URL=https://verify.assetforge.co.in`
   - `PAYMENT_PROVIDER=whop`
+  - `FIRECRAWL_API_KEY` (server-only; required for structured listing extraction)
   - Whop API key, company ID, webhook secret, API version, and configured Plan IDs
-- Run all nine Supabase migrations before deploying.
+- Run all ten Supabase migrations before deploying.
 - Set `INTERNAL_METRICS_TOKEN` to a long, random value and send it as `Authorization: Bearer <token>` only from trusted internal tools.
 
 ### Frontend project
@@ -396,7 +403,7 @@ The protected metrics endpoint returns aggregates only. The scoring audit omits 
 
 ## Performance budgets
 
-- Asset URL analysis: target under 5 seconds in normal conditions; the upstream fetch is terminated at five seconds.
+- Asset URL analysis: Firecrawl uses one bounded structured-scrape request per stale normalized listing URL. A shared Supabase cache is fresh for 24 hours, local in-process caching avoids hot repeats, and concurrent requests on one API instance are coalesced. The Firecrawl request is terminated after 12 seconds; the direct Asset Store fallback is terminated after five seconds.
 - Compatibility verification: target under 500 ms server-side; the deterministic rules are performance-tested.
 - Report load: target under 2 seconds on a normal connection.
 - Frontend: review the production bundle size on every build and avoid unnecessary dependency growth.

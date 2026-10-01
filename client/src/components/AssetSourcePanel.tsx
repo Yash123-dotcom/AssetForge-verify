@@ -11,6 +11,14 @@ type Props = {
   onManualFallback: (url: string, analysis: AssetListingAnalysis | null) => void;
 };
 
+function sourceLabel(analysis: AssetListingAnalysis): string | null {
+  const metadata = analysis.sourceMetadata;
+  if (!metadata) return null;
+  const provider = metadata.provider === 'FIRECRAWL' ? 'structured Asset Store listing data' : 'direct Asset Store listing data';
+  const status = metadata.cache === 'HIT' ? ' (cached)' : metadata.cache === 'STALE_FALLBACK' ? ' (cached data; refresh unavailable)' : '';
+  return `Source: ${provider}${status}.`;
+}
+
 export function AssetSourcePanel({ mode, onMode, onAnalysis, onManualFallback }: Props) {
   const [url, setUrl] = useState('');
   const [state, setState] = useState<'IDLE' | 'LOADING' | 'SUCCESS' | 'PARTIAL' | 'ERROR'>('IDLE');
@@ -20,13 +28,16 @@ export function AssetSourcePanel({ mode, onMode, onAnalysis, onManualFallback }:
   async function analyze(isRetry = false) {
     if (!url.trim() || state === 'LOADING') return;
     const startedAt = performance.now();
-    setState('LOADING'); setMessage('');
+    setState('LOADING');
+    setMessage('');
     if (isRetry) trackEvent('retry_after_error', { area: 'asset_analysis' });
     else trackEvent('asset_url_submitted');
     try {
       const result = await analyzeAssetUrl(url);
       const complete = Boolean(result.assetName && result.unityVersion && result.pipelineSupport.length);
-      setAnalysis(result); setState(complete ? 'SUCCESS' : 'PARTIAL'); onAnalysis(result);
+      setAnalysis(result);
+      setState(complete ? 'SUCCESS' : 'PARTIAL');
+      onAnalysis(result);
       trackEvent(complete ? 'asset_analysis_success' : 'asset_analysis_partial', { time_to_analysis_ms: Math.round(performance.now() - startedAt) });
     } catch (error) {
       setState('ERROR');
@@ -48,7 +59,7 @@ export function AssetSourcePanel({ mode, onMode, onAnalysis, onManualFallback }:
     <div className="source-tabs"><button type="button" aria-pressed={mode === 'URL'} className={mode === 'URL' ? 'selected' : ''} onClick={() => onMode('URL')}>Asset Store Link</button><button type="button" aria-pressed={mode === 'MANUAL'} className={mode === 'MANUAL' ? 'selected' : ''} onClick={() => onMode('MANUAL')}>Manual</button></div>
     {mode === 'URL' && <>
       <div className="url-analyzer"><label htmlFor="asset-url"><Link2 size={17} /> Paste Asset Store Link</label><div><input id="asset-url" type="url" value={url} onChange={(event) => setUrl(event.target.value)} onKeyDown={analyzeOnEnter} placeholder="https://assetstore.unity.com/packages/..." /><button type="button" onClick={() => void analyze()} disabled={!url.trim() || state === 'LOADING'}>{state === 'LOADING' ? <LoaderCircle className="spinner" /> : <ArrowRight />}<span>{state === 'LOADING' ? 'Analyzing…' : 'Analyze Asset'}</span></button></div></div>
-      {state !== 'IDLE' && state !== 'LOADING' && <div className={`analysis-state ${state.toLowerCase()}`} role="status" aria-live="polite">{state === 'SUCCESS' ? <Check /> : <TriangleAlert />}<div><strong>{state === 'SUCCESS' ? 'Asset details found' : state === 'PARTIAL' ? 'Review the details we found.' : "We couldn't read enough data from this listing."}</strong><p>{state === 'ERROR' ? message : 'Review and confirm the editable fields below.'}</p>{analysis?.assetName && <span>{analysis.assetName}{analysis.publisherName ? ` · ${analysis.publisherName}` : ''}</span>}{state === 'ERROR' && <div className="analysis-actions"><button type="button" onClick={() => void analyze(true)}>Retry Analysis</button><button type="button" onClick={useManualEntry}>Enter details manually</button></div>}</div></div>}
+      {state !== 'IDLE' && state !== 'LOADING' && <div className={`analysis-state ${state.toLowerCase()}`} role="status" aria-live="polite">{state === 'SUCCESS' ? <Check /> : <TriangleAlert />}<div><strong>{state === 'SUCCESS' ? 'Asset details found' : state === 'PARTIAL' ? 'Review the details we found.' : "We couldn't read enough data from this listing."}</strong><p>{state === 'ERROR' ? message : 'Review and confirm the editable fields below.'}</p>{analysis?.assetName && <span>{analysis.assetName}{analysis.publisherName ? ` · ${analysis.publisherName}` : ''}</span>}{analysis && sourceLabel(analysis) && <p>{sourceLabel(analysis)}</p>}{state === 'ERROR' && <div className="analysis-actions"><button type="button" onClick={() => void analyze(true)}>Retry Analysis</button><button type="button" onClick={useManualEntry}>Enter details manually</button></div>}</div></div>}
       <p className="analysis-disclaimer">Listing details are detected automatically and may be incomplete. Review them before verifying.</p>
     </>}
     {mode === 'MANUAL' && <p className="manual-note">Enter the asset details manually below. The listing URL and any details already found are preserved.</p>}
