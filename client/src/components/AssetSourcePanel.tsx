@@ -59,7 +59,29 @@ export function AssetSourcePanel({ mode, onMode, onAnalysis, onManualFallback }:
     <div className="source-tabs"><button type="button" aria-pressed={mode === 'URL'} className={mode === 'URL' ? 'selected' : ''} onClick={() => onMode('URL')}>Asset Store Link</button><button type="button" aria-pressed={mode === 'MANUAL'} className={mode === 'MANUAL' ? 'selected' : ''} onClick={() => onMode('MANUAL')}>Manual</button></div>
     {mode === 'URL' && <>
       <div className="url-analyzer"><label htmlFor="asset-url"><Link2 size={17} /> Paste Asset Store Link</label><div><input id="asset-url" type="url" value={url} onChange={(event) => setUrl(event.target.value)} onKeyDown={analyzeOnEnter} placeholder="https://assetstore.unity.com/packages/..." /><button type="button" onClick={() => void analyze()} disabled={!url.trim() || state === 'LOADING'}>{state === 'LOADING' ? <LoaderCircle className="spinner" /> : <ArrowRight />}<span>{state === 'LOADING' ? 'Analyzing…' : 'Analyze Asset'}</span></button></div></div>
-      {state !== 'IDLE' && state !== 'LOADING' && <div className={`analysis-state ${state.toLowerCase()}`} role="status" aria-live="polite">{state === 'SUCCESS' ? <Check /> : <TriangleAlert />}<div><strong>{state === 'SUCCESS' ? 'Asset details found' : state === 'PARTIAL' ? 'Review the details we found.' : "We couldn't read enough data from this listing."}</strong><p>{state === 'ERROR' ? message : 'Review and confirm the editable fields below.'}</p>{analysis?.assetName && <span>{analysis.assetName}{analysis.publisherName ? ` · ${analysis.publisherName}` : ''}</span>}{analysis && sourceLabel(analysis) && <p>{sourceLabel(analysis)}</p>}{state === 'ERROR' && <div className="analysis-actions"><button type="button" onClick={() => void analyze(true)}>Retry Analysis</button><button type="button" onClick={useManualEntry}>Enter details manually</button></div>}</div></div>}
+      {state !== 'IDLE' && state !== 'LOADING' && (
+        <div className={`analysis-state ${state.toLowerCase()}`} role="status" aria-live="polite">
+          {state === 'SUCCESS' ? <Check /> : <TriangleAlert />}
+          <div>
+            <strong>
+              {state === 'SUCCESS' ? 'Asset details found' : state === 'PARTIAL' ? 'Partial listing data detected' : "We couldn't read enough data from this listing."}
+            </strong>
+            {state === 'PARTIAL' && analysis ? (
+              <ul style={{listStyle: 'none', padding: 0, margin: '0.5rem 0', fontSize: '0.875rem', display: 'flex', flexDirection: 'column', gap: '0.25rem'}}>
+                {analysis.assetName ? <li style={{color: '#12A873'}}>✓ Asset name: {analysis.assetName}{analysis.publisherName ? ` · ${analysis.publisherName}` : ''}</li> : <li style={{color: '#E2AD54'}}>⚠ Asset name not detected</li>}
+                {analysis.unityVersion ? <li style={{color: '#12A873'}}>✓ Unity version detected ({analysis.unityVersion})</li> : <li style={{color: '#E2AD54'}}>⚠ Unity version not detected — enter below</li>}
+                {analysis.pipelineSupport.length ? <li style={{color: '#12A873'}}>✓ Render pipeline detected ({analysis.pipelineSupport.join(', ')})</li> : <li style={{color: '#E2AD54'}}>⚠ Render pipeline not detected — enter below</li>}
+                {analysis.dependencies.length ? <li style={{color: '#12A873'}}>✓ Dependencies detected ({analysis.dependencies.length})</li> : <li style={{color: '#E2AD54'}}>⚠ Dependencies not confirmed — review manually</li>}
+              </ul>
+            ) : (
+              <p>{state === 'ERROR' ? message : 'Review and confirm the editable fields below.'}</p>
+            )}
+            {state !== 'PARTIAL' && analysis?.assetName && <span>{analysis.assetName}{analysis.publisherName ? ` · ${analysis.publisherName}` : ''}</span>}
+            {analysis && sourceLabel(analysis) && <p>{sourceLabel(analysis)}</p>}
+            {state === 'ERROR' && <div className="analysis-actions"><button type="button" onClick={() => void analyze(true)}>Retry Analysis</button><button type="button" onClick={useManualEntry}>Enter details manually</button></div>}
+          </div>
+        </div>
+      )}
       <p className="analysis-disclaimer">Listing details are detected automatically and may be incomplete. Review them before verifying.</p>
     </>}
     {mode === 'MANUAL' && <p className="manual-note">Enter the asset details manually below. The listing URL and any details already found are preserved.</p>}

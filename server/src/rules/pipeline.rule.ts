@@ -1,6 +1,9 @@
 import { CheckResult, pipelineNames, VerifyRequest } from '../types/verify.types.js';
 
 export function evaluatePipeline(input: VerifyRequest): CheckResult {
+  if (!input.project?.pipeline) {
+    return { id: 'pipeline', category: 'Render pipeline', status: 'WARNING', severity: 'INFO', scoreImpact: 0, message: 'Project render pipeline not provided. Add project details for a personalized comparison.' };
+  }
   if (input.asset.metadata?.fieldConfidence?.pipeline === 'UNKNOWN') return { id: 'pipeline', category: 'Render pipeline', status: 'WARNING', severity: 'INFO', scoreImpact: 0, message: 'Not enough package data was found to confirm the asset render pipeline.' };
   const matches = input.project.pipeline === input.asset.pipeline;
   return {

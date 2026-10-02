@@ -71,10 +71,22 @@ export function DeepScanForm({ project, onProjectChange, onStarted, onCompleted 
   return <form className="deep-scan-form" onSubmit={submit} noValidate>
     <ProjectSetupForm value={project} onChange={(next) => { onStarted(); onProjectChange(next); }} showErrors={showErrors} />
     <section className="form-card deep-scan-card"><div className="form-card-heading"><span className="icon-box"><FileArchive size={19} /></span><div><p className="eyebrow">PACKAGE / STATIC INSPECTION</p><h2>Upload Unity Package</h2></div><span className="deep-beta" title="Static package inspection is still being improved.">Deep Scan — Beta</span></div>
-      <div className={`package-dropzone ${dragging ? 'dragging' : ''} ${busy ? 'disabled' : ''}`} onDragOver={(event) => { event.preventDefault(); if (!busy) setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={drop} onClick={() => { if (!busy) inputRef.current?.click(); }} role="button" tabIndex={busy ? -1 : 0} onKeyDown={(event) => { if (!busy && (event.key === 'Enter' || event.key === ' ')) inputRef.current?.click(); }} aria-label="Choose a Unity package" aria-disabled={busy}>
-        <input ref={inputRef} type="file" accept=".unitypackage,.tar.gz" onChange={(event) => chooseFile(event.target.files?.[0])} disabled={busy} hidden />
-        <Upload size={26} /><strong>Drop a .unitypackage here</strong><span>or choose a file · up to {clientLimitMb} MB</span>
-      </div>
+      {availableCredits === 0 ? (
+        <div className="package-dropzone zero-credits" style={{textAlign: 'center', padding: '2rem'}}>
+          <strong>Deep Scan requires 1 credit</strong>
+          <p style={{margin: '1rem 0'}}>Analyze the actual .unitypackage for shaders, scripts, dependencies, render pipeline signals and other package-level compatibility indicators.</p>
+          <div className="credit-pricing" style={{marginBottom: '1rem'}}>1 Deep Scan � ?149</div>
+          <Link to="/pricing" className="editorial-button" onClick={() => trackEvent('deep_scan_purchase_prompt_clicked')}>Get Deep Scan Credits</Link>
+        </div>
+      ) : (
+        <>
+          <div className={package-dropzone  } onDragOver={(event) => { event.preventDefault(); if (!busy) setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={drop} onClick={() => { if (!busy) inputRef.current?.click(); }} role="button" tabIndex={busy ? -1 : 0} onKeyDown={(event) => { if (!busy && (event.key === 'Enter' || event.key === ' ')) inputRef.current?.click(); }} aria-label="Choose a Unity package" aria-disabled={busy}>
+            <input ref={inputRef} type="file" accept=".unitypackage,.tar.gz" onChange={(event) => chooseFile(event.target.files?.[0])} disabled={busy} hidden />
+            <Upload size={26} /><strong>Drop a .unitypackage here</strong><span>or choose a file up to {clientLimitMb} MB</span>
+          </div>
+          <div className="static-safety" style={{marginTop: '1rem', color: '#E2AD54'}}><p>Deep Scan requires the downloaded .unitypackage. Verify does not automatically download paid Unity Asset Store packages.</p></div>
+        </>
+      )}
       {file && <div className="selected-package"><FileArchive size={20} /><div><strong>{file.name}</strong><span>{formatBytes(file.size)}</span></div><button type="button" aria-label="Remove selected package" disabled={busy} onClick={() => { setFile(null); if (inputRef.current) inputRef.current.value = ''; }}><X size={17} /></button></div>}
       <div className="static-safety"><ShieldCheck size={18} /><p><strong>Static inspection only.</strong> Uploaded code is never executed. Packages are processed temporarily and deleted after analysis.</p></div>
       <details className="deep-privacy"><summary>How Deep Scan works</summary><p>The server reads archive structure and bounded text signals without running Unity, scripts, shaders, or DLLs. The uploaded package is kept only in temporary processing storage and removed after the request; only the normalized report is saved.</p></details>
