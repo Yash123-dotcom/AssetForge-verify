@@ -1,5 +1,4 @@
 import type { VerifyResponse } from '../types/verify.types';
-import { RiskBadge } from './RiskBadge';
 
 export function CompatibilityScore({ result }: { result: VerifyResponse }) {
   const label = result.score >= 90 ? 'Strong match' : result.score >= 80 ? 'Low setup risk' : result.score >= 55 ? 'Some checks recommended' : 'Higher setup risk';

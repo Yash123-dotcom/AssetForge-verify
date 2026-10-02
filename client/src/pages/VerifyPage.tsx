@@ -80,17 +80,7 @@ export function VerifyPage() {
     {verificationMode === 'DEEP' ? <div className="deep-scan-shell"><DeepScanForm project={form.project} onProjectChange={(project) => setForm({ ...form, project })} onStarted={markStarted} onCompleted={(report) => { submitted.current = true; navigate(`/report/${report.id}`); }} /></div> : <div className="verify-workspace">
       <aside className="workflow-rail" aria-label="Verification workflow"><p className="eyebrow">REPORT INPUTS</p><ol><li><span>01</span><div><strong>Project</strong><small>Your target environment</small></div></li><li><span>02</span><div><strong>Asset</strong><small>Listing or manual details</small></div></li><li><span>03</span><div><strong>Compare</strong><small>Five focused checks</small></div></li></ol><div className="privacy-note"><span aria-hidden="true" /><p><strong>No package upload</strong>Your Unity project and asset files stay with you.</p></div></aside>
       <div className="verify-flow"><div className="limitation"><Info size={17} /><p>Listing analysis uses public metadata and may be incomplete. Verify does not download the asset package.</p></div>
-        <form onSubmit={submit} noValidate>
-          <details className="optional-project-setup" open={Boolean(form.project?.unityVersion)}>
-            <summary style={{cursor: 'pointer', padding: '0.75rem 0', color: '#92978F', fontSize: '0.9rem', listStyle: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
-              <span style={{color: form.project?.unityVersion ? '#12A873' : '#E2AD54'}}>
-                {form.project?.unityVersion ? '✓ Project details added' : '+ Add project details for a personalized score (optional)'}
-              </span>
-            </summary>
-            <ProjectSetupForm value={form.project ?? { unityVersion: '', pipeline: '', platform: '' }} onChange={(project) => { markStarted(); setForm({ ...form, project }); }} showErrors={false} />
-          </details>
-          <AssetSourcePanel mode={mode} onMode={(nextMode) => { markStarted(); setMode(nextMode); }} onAnalysis={applyAnalysis} onManualFallback={manualFallback} /><AssetSetupForm value={form.asset} onChange={updateAsset} showErrors={showErrors} />{error && <div className="form-error" role="alert"><p>{error}</p><button type="submit" onClick={() => trackEvent('retry_after_error', { area: 'verification' })}>Retry</button></div>}<div className="submit-row"><p><span>05</span> focused checks · Heuristic result</p><VerifyButton loading={loading} disabled={!valid} /></div>
-        </form>
+        <form onSubmit={submit} noValidate><ProjectSetupForm value={form.project} onChange={(project) => { markStarted(); setForm({ ...form, project }); }} showErrors={showErrors} /><AssetSourcePanel mode={mode} onMode={(nextMode) => { markStarted(); setMode(nextMode); }} onAnalysis={applyAnalysis} onManualFallback={manualFallback} /><AssetSetupForm value={form.asset} onChange={updateAsset} showErrors={showErrors} />{error && <div className="form-error" role="alert"><p>{error}</p><button type="submit" onClick={() => trackEvent('retry_after_error', { area: 'verification' })}>Retry</button></div>}<div className="submit-row"><p><span>05</span> focused checks · Heuristic result</p><VerifyButton loading={loading} disabled={!valid} /></div></form>
       </div>
     </div>}
   </main>;
